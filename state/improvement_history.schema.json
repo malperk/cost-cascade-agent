@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "improvement_history entry",
+  "description": "One entry per self-improvement cycle, written only by tools/append_improvement_history.py (invoked only by tools/self_improvement_runner.py, never directly by the LLM agent). state/improvement_history.json is a JSON array of these.",
+  "type": "object",
+  "required": ["cycle_id", "timestamp", "category", "metric", "fingerprint", "result"],
+  "properties": {
+    "cycle_id": {"type": "string"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "category": {"enum": ["code", "model"]},
+    "metric": {"enum": ["latency", "cost", "success_rate", "retry_count"]},
+    "fingerprint": {"type": "string", "description": "sha256 hex digest - see self-improvement plan section 8 for the exact formula per category"},
+    "result": {"enum": ["pass", "fail"]},
+    "hypothesis": {"type": "object"},
+    "score": {"type": ["number", "null"], "description": "the metric's measured score for this cycle, null if the cycle failed before eval produced one"},
+    "effective_bar": {"type": ["number", "null"]},
+    "candidate_sha": {"type": ["string", "null"]},
+    "report_path": {"type": "string"}
+  },
+  "additionalProperties": false
+}
