@@ -1,0 +1,37 @@
+NOT (triage için): Bu görev sıralı ama sınırlı adımlardan oluşuyor - tek bir sürekli tool-calling oturumunda yap, alt görevlere BÖLME.
+
+Görev: OmniRoute'a bağlı 6 sağlayıcıdan (nvidia, expl, groq, openrouter, cerebras, cf) birkaçar model seçip GERÇEK maliyet bilgisiyle (isim tahmini değil) hangilerinin gerçekten ücretsiz olduğunu tespit et ve sonucu workspace içinde confirmed_free_models.json dosyasına yaz.
+
+Bunu TEK bir code_execution çağrısında, aşağıdaki Python scriptiyle yap:
+
+    import subprocess, json, time
+
+    filters = ["nvidia/nvidia", "expl/", "groq/", "openrouter/", "cerebras/", "cf/"]
+    combined = []
+    for f in filters:
+        subprocess.run(
+            ["python", "/Users/alperkaratas/Codes/Alper/LangGraph/tools/model_report.py",
+             "--filter", f, "--limit", "5", "--workers", "5", "--timeout", "20"],
+            capture_output=True, text=True, timeout=90,
+        )
+        with open("/Users/alperkaratas/Codes/Alper/LangGraph/tools/model_report.json") as fh:
+            combined.extend(json.load(fh))
+        time.sleep(3)
+
+    confirmed_free = [
+        {"id": r["id"], "real_provider": r["real_provider"], "tool_call_works": r["tool_call_works"]}
+        for r in combined if r.get("is_free")
+    ]
+
+    with open("confirmed_free_models.json", "w") as fh:  # cwd zaten workspace/
+        json.dump(confirmed_free, fh, indent=2, ensure_ascii=False)
+
+    print(f"tested {len(combined)} models, confirmed free: {len(confirmed_free)}")
+
+code_execution'ı `timeout_seconds: 250` ile çağır.
+
+Not: `model_report.py` artık her model için gerçek `x-omniroute-response-cost` header'ını okuyup `is_free` alanına (cost==0.0 ise True) yazıyor - isim bazlı tahmin değil, gerçek doğrulama. `real_provider` alanı da isteği gerçekten hangi sağlayıcının karşıladığını gösteriyor.
+
+Başka hiçbir şey yapma: combo oluşturma, provider ekleme/kaldırma - bunlar bu görevin parçası değil. Sadece dosyayı oluştur.
+
+Son cevabında: kaç model test edildiğini, kaçının gerçekten ücretsiz çıktığını ve hangi sağlayıcılardan olduğunu söyle.

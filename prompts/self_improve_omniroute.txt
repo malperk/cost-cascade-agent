@@ -1,0 +1,64 @@
+NOT (triage için): Bu görev sıralı adımlardan oluşuyor (önce test çalıştır, sonra sonucu oku, sonra karar ver) - tek bir sürekli tool-calling oturumunda yap, alt görevlere BÖLME.
+
+Görev: OmniRoute kurulumunu analiz edip, kendi kullanacağın (cheap/premium tier) için yeni ve daha iyi routing combo'ları oluştur.
+
+Bunu code_execution tool'u ile Python içinden subprocess çağrıları yaparak yap. İki önemli teknik detay:
+
+a) code_execution tool'unun bir `timeout_seconds` parametresi var (varsayılan 10, maksimum 600). Uzun sürecek adımlar için bunu yüksek ver, örn: code_execution çağrısında `timeout_seconds: 550` gibi.
+
+b) omniroute CLI, OMNIROUTE_BASE_URL ortam değişkeninde "/v1" soneki varsa yanlış URL'ler üretiyor. code_execution içine yazdığın Python kodunda, omniroute'u çağırmadan önce ortamı şöyle düzelt:
+
+    import os, subprocess
+    env = os.environ.copy()
+    env["OMNIROUTE_BASE_URL"] = "http://localhost:20128"
+    result = subprocess.run(["omniroute", ...], capture_output=True, text=True, env=env)
+
+Adımlar:
+
+1. Güncel sağlayıcı listesini gör: `omniroute providers list --output json`
+
+2. Model güvenilirlik raporunu YENİLE — ama TÜM kataloğu (600+ model) değil, sadece ilgili sağlayıcıları tek tek test et. Tüm katalogu birden taramak o sağlayıcının rate-limit/kuyruğunu doldurup SENİN kendi ileride yapacağın LLM çağrılarını (bu görevi yürüten model dahil) tıkayabilir - bunu asla yapma.
+
+   Bunu TEK bir code_execution çağrısında, aşağıdaki gibi bir Python scripti yazarak yap (döngü + birleştirme kendi içinde, ayrı tool çağrılarına bölme):
+
+    import subprocess, json, time
+
+    filters = ["nvidia/nvidia", "expl/", "openrouter/", "cerebras/", "groq/"]
+    combined = []
+    for f in filters:
+        subprocess.run(
+            ["python", "/Users/alperkaratas/Codes/Alper/LangGraph/tools/model_report.py",
+             "--filter", f, "--limit", "3", "--workers", "5", "--timeout", "20"],
+            capture_output=True, text=True, timeout=90,
+        )
+        with open("/Users/alperkaratas/Codes/Alper/LangGraph/tools/model_report.json") as fh:
+            combined.extend(json.load(fh))
+        time.sleep(5)
+
+    with open("model_report_combined.json", "w") as fh:  # cwd zaten workspace/ - file_read bunu görebilsin diye buraya yaz
+        json.dump(combined, fh)
+    print(f"tested {len(combined)} models total")
+
+   Bu çağrıyı code_execution'a `timeout_seconds: 200` ile yap (her sağlayıcıdan sadece 3 model test edildiği için hızlı olmalı).
+
+3. Raporu oku: file_read ile `model_report_combined.json` dosyasını oku (bu dosya workspace/ içinde, file_read ile doğrudan erişilebilir - tools/model_report.json'ın kendisi workspace dışında olduğu için ona file_read ile erişemezsin, o yüzden 2. adımda içeriğini workspace'e kopyaladık).
+
+4. Rapordaki `works: true` VE `tool_call_works: true` olan modelleri filtrele. Bunlar arasından:
+   - En düşük latency'ye sahip 2-3 modelden "hizli" odaklı bir combo
+   - En büyük/güçlü (context_length ve model ismine bakarak - örn. claude-opus-5, gpt-5.4, gemini-3.1-pro, nemotron-3-ultra gibi flagship modeller) 2-3 modelden "guclu" odaklı bir combo
+   - Farklı sağlayıcılardan (en az 3 farklı prefix: nvidia/, expl/, groq/, openrouter/, cerebras/, cf/ gibi) modeller karıştırarak dayanıklı bir "dayanikli" combo
+   seç. Her combo'da modelleri en güvenilir/hızlı olan başta olacak şekilde sırala (priority stratejisi bu sırayı fallback zinciri olarak kullanacak).
+
+5. Her combo'yu şu komutla oluştur (isimlerin başına "agent-" öneki koy, örn: agent-hizli, agent-guclu, agent-dayanikli):
+   `omniroute combo create agent-hizli --strategy priority --models "model1,model2,model3"`
+   (model id'leri /v1/models'teki tam id olmalı, örn: "nvidia/nvidia/nemotron-3-nano-30b-a3b")
+
+6. Her combo oluşturduktan sonra `omniroute combo list --output json` ile doğrula.
+
+KESİN KURALLAR (asla ihlal etme):
+- Sadece YENİ combo oluştur (omniroute combo create). combo delete, combo switch, providers add, providers remove, providers rotate gibi komutları ASLA çalıştırma.
+- Mevcut "alper-free-stack" ve "alper-premium-tier" combo'larına hiç dokunma, onları değiştirme/silme.
+- En fazla 3 yeni combo oluştur.
+- Gerçek bir isteği (chat completion) sadece test amaçlı, en fazla birkaç kez çalıştır - gereksiz tekrar tekrar deneme yapma.
+
+Son cevabında: hangi 3 combo'yu hangi modellerle ve neden (rapor verisine dayanarak) oluşturduğunu özetle.

@@ -1,0 +1,26 @@
+NOT (triage için): Bu tek adımlık, basit bir görev - tek bir code_execution çağrısıyla bitirilebilir. Alt görevlere BÖLME, ekstra analiz/yorum/combo oluşturma YAPMA.
+
+Görev: OmniRoute'taki (http://localhost:20128) tüm sağlayıcıların tüm modellerini çek, id'sinde "free" geçen (büyük/küçük harf duyarsız) modelleri filtrele, ve sonucu workspace içinde free_models.json dosyasına yaz.
+
+Bunu TEK bir code_execution çağrısıyla yap, şu Python kodunu kullan:
+
+    import os, json, requests
+
+    api_key = os.environ.get("OMNIROUTE_API_KEY", "")
+    headers = {"Authorization": f"Bearer {api_key}"}
+    resp = requests.get("http://localhost:20128/v1/models", headers=headers, timeout=15)
+    resp.raise_for_status()
+    models = resp.json()["data"]
+
+    free_models = sorted(m["id"] for m in models if "free" in m["id"].lower())
+
+    with open("free_models.json", "w") as f:
+        json.dump(free_models, f, indent=2, ensure_ascii=False)
+
+    print(f"Total models: {len(models)}, free models: {len(free_models)}")
+
+code_execution'ı `timeout_seconds: 30` ile çağırman yeterli (tek bir HTTP isteği, hızlı olmalı).
+
+Başka hiçbir şey yapma: combo oluşturma, provider ekleme/kaldırma, ek analiz, model testi - hiçbiri bu görevin parçası değil. Sadece dosyayı oluştur.
+
+Son cevabında: kaç tane free model bulduğunu ve dosyanın nerede olduğunu söyle.
