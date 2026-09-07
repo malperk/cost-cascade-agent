@@ -1,0 +1,13 @@
+{
+  "id": "fast_04_code_execution",
+  "prompt": "Run a Python snippet that prints the sum of the numbers from 1 to 10, then tell me the result.",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [
+      "55"
+    ],
+    "required_tool": "code_execution",
+    "max_attempts": 4,
+    "baseline_call_count": 4
+  }
+}

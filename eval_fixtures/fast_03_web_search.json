@@ -1,0 +1,11 @@
+{
+  "id": "fast_03_web_search",
+  "prompt": "Search the web to find out what LangGraph is, then summarize it in one sentence.",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [],
+    "required_tool": "web_search",
+    "max_attempts": 4,
+    "baseline_call_count": 5
+  }
+}

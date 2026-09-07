@@ -1,0 +1,13 @@
+{
+  "id": "fast_05_list_directory",
+  "prompt": "Create a file called marker.txt in the workspace with the content 'x', then list the workspace directory and tell me what files are in it.",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [
+      "marker.txt"
+    ],
+    "required_tool": "file_write",
+    "max_attempts": 4,
+    "baseline_call_count": 8
+  }
+}

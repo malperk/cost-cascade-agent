@@ -1,0 +1,13 @@
+{
+  "id": "fast_01_arithmetic",
+  "prompt": "What is 17 multiplied by 24? Reply with just the number.",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [
+      "408"
+    ],
+    "required_tool": null,
+    "max_attempts": 4,
+    "baseline_call_count": 3
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "fast_02_file_write",
+  "prompt": "Create a file called notes.txt in the workspace containing exactly the line: hello from eval",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [
+      "notes.txt"
+    ],
+    "required_tool": "file_write",
+    "max_attempts": 4,
+    "baseline_call_count": 4
+  }
+}
