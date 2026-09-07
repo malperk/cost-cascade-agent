@@ -1,15 +1,37 @@
 import ast
 import operator
+import os
 import subprocess
 import sys
 from pathlib import Path
 
+import httpx
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.tools import tool
 
 from agent.config import WORKSPACE_DIR
 
-web_search = DuckDuckGoSearchRun()
+# See agent/llm.py for why this exists: inside a self-improvement authoring/eval container
+# (--network none), there is no direct internet access at all, so web search is relayed
+# through the same trusted host broker that handles model inference.
+_BROKER_SOCKET_PATH = os.getenv("BROKER_SOCKET_PATH")
+
+if _BROKER_SOCKET_PATH:
+    _broker_client = httpx.Client(
+        transport=httpx.HTTPTransport(uds=_BROKER_SOCKET_PATH), timeout=30
+    )
+
+    @tool
+    def web_search(query: str) -> str:
+        """Search the web for the given query and return a short summary of results."""
+        try:
+            response = _broker_client.post("http://broker/search", json={"query": query})
+            response.raise_for_status()
+            return response.json().get("result", "")
+        except Exception as exc:
+            return f"Error: web search failed ({exc})"
+else:
+    web_search = DuckDuckGoSearchRun()
 
 
 def _resolve_safe_path(path: str) -> Path:
