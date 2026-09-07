@@ -6,3 +6,5 @@ __pycache__/
 .DS_Store
 .self-improve-clones/
 .self-improve-runtime/
+.self_improvement.lock
+.claude/

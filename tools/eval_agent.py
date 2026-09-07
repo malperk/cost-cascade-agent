@@ -70,6 +70,8 @@ def run_case(
     broker_socket_path: Path | None,
     broker_log_path: Path | None,
     timeout_seconds: int,
+    env_overrides: dict[str, str] | None = None,
+    container_label: str | None = None,
 ) -> dict:
     case_id = fixture["id"]
     expected = fixture["expected"]
@@ -87,11 +89,15 @@ def run_case(
         "-e", "AGENT_WORKSPACE_DIR=/workspace",
         "-w", "/app",
     ]
+    if container_label:
+        docker_cmd += ["--label", f"self-improvement.cycle={container_label}"]
     if broker_socket_path:
         docker_cmd += [
             "-v", f"{broker_socket_path}:/run/broker.sock",
             "-e", "BROKER_SOCKET_PATH=/run/broker.sock",
         ]
+    for key, value in (env_overrides or {}).items():
+        docker_cmd += ["-e", f"{key}={value}"]
     docker_cmd += [image, "python3", "-m", "agent.main", fixture["prompt"]]
 
     start = time.monotonic()
@@ -172,10 +178,15 @@ def run_suite(
     broker_socket_path: Path | None,
     broker_log_path: Path | None,
     timeout_seconds: int,
+    env_overrides: dict[str, str] | None = None,
+    container_label: str | None = None,
 ) -> dict:
     fixtures = _load_fixtures(suite_dir, pattern)
     results = [
-        run_case(f, image, source_dir, broker_socket_path, broker_log_path, timeout_seconds)
+        run_case(
+            f, image, source_dir, broker_socket_path, broker_log_path, timeout_seconds,
+            env_overrides=env_overrides, container_label=container_label,
+        )
         for f in fixtures
     ]
     passed = sum(1 for r in results if r["passed"])
