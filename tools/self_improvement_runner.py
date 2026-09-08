@@ -484,11 +484,13 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
 
     if metric == "success_rate":
         ok, score = evaluate_metric(metric, baseline_fast, candidate_fast, "fast", bar)
+        journal.update(score=score)
         if not ok:
             raise CycleFailed("success_rate fast gate did not pass")
         baseline_full = eval_with("baseline", source_export, None)
         candidate_full = eval_with("candidate", candidate_export, candidate_tier)
         ok, score = evaluate_metric(metric, baseline_full, candidate_full, "full", bar)
+        journal.update(score=score)
         if not ok:
             raise CycleFailed("success_rate full baseline-vs-candidate gate did not pass")
     else:
@@ -504,6 +506,8 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
         baseline_paired = {"cases": [c for suite in b_paired for c in suite["cases"]]}
         candidate_paired = {"cases": [c for suite in c_paired for c in suite["cases"]]}
         ok, score = evaluate_metric(metric, baseline_paired, candidate_paired, "full", bar)
+        journal.update(score=score)  # recorded before the raise, so a FAIL's ledger entry
+        # still shows the objective measured score, not just the free-text failure reason.
         if not ok:
             raise CycleFailed(f"{metric} paired benchmark did not pass (score={score}, bar={bar})")
 
@@ -512,7 +516,8 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
         if full_candidate["passed"] != full_candidate["total"]:
             raise CycleFailed("full regression suite failed on candidate")
 
-    journal.update(score=score)
+    # score is already in the journal (recorded right after each evaluate_metric() call above,
+    # before any raise) - nothing left to update here, just advance the phase.
     journal.set_phase("EVAL_PASSED")
 
     journal.set_phase("PROMOTION_STARTED")
