@@ -60,6 +60,10 @@ PRODUCTION_COMBO_NAME_FOR_TIER = {"low": "alper-low", "mid": "alper-mid", "high"
 PRODUCTION_COMBOS = list(PRODUCTION_COMBO_NAME_FOR_TIER.values())
 IMAGE_TAG_PREFIX = "self-improve"
 AUTHORING_TIMEOUT_SECONDS = 20 * 60
+# Live testing showed "low" tier unreliable for this long, meta, instruction-heavy prompt:
+# one run truncated its hypothesis.json write, another disengaged from the task entirely
+# after triage rated it low-risk. See agent/config.py's AGENT_MIN_TIER for the mechanism.
+AUTHORING_MIN_TIER = "mid"
 AUTHORING_MODEL_CALL_BUDGET = 15
 AUTHORING_SEARCH_CALL_BUDGET = 5
 
@@ -245,6 +249,7 @@ def run_authoring_container(
         "-v", f"{socket_path}:/run/broker.sock",
         "-e", "BROKER_SOCKET_PATH=/run/broker.sock",
         "-e", "AGENT_WORKSPACE_DIR=/cycle-output",
+        "-e", f"AGENT_MIN_TIER={AUTHORING_MIN_TIER}",
         "-w", "/app",
         image, "python3", "-m", "agent.main", prompt,
     ]

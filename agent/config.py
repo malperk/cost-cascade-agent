@@ -17,6 +17,13 @@ LOCAL_MODEL = os.getenv("LOCAL_MODEL", "alper-local")
 
 MAX_ATTEMPTS = int(os.getenv("MAX_ATTEMPTS", "4"))
 
+# Normal runs start triage at "low" and let review-driven escalation move up from there.
+# The self-improvement runner overrides this to "mid" for its authoring container, since a
+# long, meta, instruction-heavy prompt (read this context, pick a hypothesis, edit files,
+# commit) proved unreliable at "low" tier in live testing - triage under-assessed the task's
+# risk and the model disengaged from it entirely rather than following the instructions.
+AGENT_MIN_TIER = os.getenv("AGENT_MIN_TIER", "low")
+
 # File/code tools are sandboxed to this directory - agents cannot read or write
 # anything outside of it (see agent/tools.py:_resolve_safe_path).
 WORKSPACE_DIR = Path(os.getenv("AGENT_WORKSPACE_DIR", "./workspace")).resolve()

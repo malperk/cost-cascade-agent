@@ -3,7 +3,7 @@ from typing import Literal
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
-from agent.config import MAX_ATTEMPTS
+from agent.config import AGENT_MIN_TIER, MAX_ATTEMPTS
 from agent.llm import INFRA_ERRORS, NEXT_TIER, client_for_tier, invoke_with_retry
 from agent.state import TaskState
 from agent.tools import ALL_TOOLS
@@ -27,7 +27,12 @@ class ReviewResult(BaseModel):
 
 def triage_node(state: TaskState) -> dict:
     depth = state.get("depth", 0)
-    llm = client_for_tier("low").with_structured_output(TriageDecision, method="json_schema")
+    # AGENT_MIN_TIER defaults to "low" for normal runs; the self-improvement runner raises it
+    # (see agent/config.py) for its authoring container, where a long, meta, instruction-heavy
+    # prompt proved unreliable at "low" - both the triage classification itself and the
+    # resulting starting execution tier are raised together, since a confused triage call was
+    # part of the observed failure (it rated the task low-risk/no-review-needed).
+    llm = client_for_tier(AGENT_MIN_TIER).with_structured_output(TriageDecision, method="json_schema")
     decision: TriageDecision = invoke_with_retry(
         llm,
         "Assess this task and decide the minimum necessary execution path.\n"
@@ -46,13 +51,13 @@ def triage_node(state: TaskState) -> dict:
         "risk_level": decision.risk_level,
         "review_needed": decision.review_needed,
         "triage_reasoning": decision.reasoning,
-        "tier": "low",
+        "tier": AGENT_MIN_TIER,
         "attempt_count": 0,
     }
 
 
 def planner_node(state: TaskState) -> dict:
-    llm = client_for_tier("low").with_structured_output(SplitPlan, method="json_schema")
+    llm = client_for_tier(AGENT_MIN_TIER).with_structured_output(SplitPlan, method="json_schema")
     plan: SplitPlan = invoke_with_retry(
         llm,
         "Break this task into 2-6 self-contained subtasks that together fully accomplish it. "
