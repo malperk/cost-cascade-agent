@@ -328,6 +328,27 @@ def effective_bar(hypothesis: dict) -> float | None:
     return None
 
 
+def check_guard(hypothesis: dict, baseline_cases: list[dict], candidate_cases: list[dict]) -> None:
+    """Enforces hypothesis.json's declared guard - previously a schema field the agent wrote
+    but nothing ever read. A live cycle showed exactly why this matters: a candidate combo
+    with zero working providers fails every call near-instantly, which makes "latency"/"cost"
+    (proxied via call count) look great purely because it's broken, not because it's fast. The
+    full-suite-must-be-100%-passing regression gate happened to catch that specific case, but
+    the guard is the one actually named by the hypothesis and should fire on its own, earlier,
+    with a clear reason - not rely on the regression gate as an accidental backstop."""
+    guard = hypothesis.get("guard")
+    if not guard or guard.get("metric") != "success_rate":
+        return  # only a success_rate guard is enforced; anything else is a documented no-op
+    max_regression = guard.get("max_regression", 0.0)
+    baseline_rate = sum(1 for c in baseline_cases if c["passed"]) / len(baseline_cases) if baseline_cases else 1.0
+    candidate_rate = sum(1 for c in candidate_cases if c["passed"]) / len(candidate_cases) if candidate_cases else 0.0
+    if (baseline_rate - candidate_rate) > max_regression:
+        raise CycleFailed(
+            f"guard violated: success_rate regressed from {baseline_rate:.2f} to {candidate_rate:.2f} "
+            f"(max allowed regression {max_regression})"
+        )
+
+
 def evaluate_metric(metric: str, baseline_suite: dict, candidate_suite: dict, mode: str, bar: float | None) -> tuple[bool, float | None]:
     if metric == "success_rate":
         if mode == "fast":
@@ -525,6 +546,7 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
         ok, score = evaluate_metric(metric, baseline_paired, candidate_paired, "full", bar)
         journal.update(score=score)  # recorded before the raise, so a FAIL's ledger entry
         # still shows the objective measured score, not just the free-text failure reason.
+        check_guard(hypothesis, baseline_paired["cases"], candidate_paired["cases"])
         if not ok:
             raise CycleFailed(f"{metric} paired benchmark did not pass (score={score}, bar={bar})")
 
