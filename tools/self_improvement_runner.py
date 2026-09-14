@@ -86,8 +86,13 @@ HYPOTHESIS_SCHEMA = {
 }
 
 POLICY = {
-    "latency": {"kind": "paired", "direction": "lower", "min_score": 0.10},
-    "cost": {"kind": "paired", "direction": "lower", "min_score": 0.10},
+    # "auto_accept": no matter how high the agent's own proposed threshold was, a candidate
+    # clearing this absolute bar is accepted regardless - a genuinely large real improvement
+    # shouldn't be rejected just because the agent overpromised. Below this, the agent still
+    # has to clear its own stated number (tightened against min_score, never loosened below
+    # it) - see effective_bar().
+    "latency": {"kind": "paired", "direction": "lower", "min_score": 0.10, "auto_accept": 0.40},
+    "cost": {"kind": "paired", "direction": "lower", "min_score": 0.10, "auto_accept": 0.40},
     "retry_count": {"kind": "paired", "direction": "lower"},
     "success_rate": {"kind": "discrete", "direction": "higher", "min_absolute_improvement": 0.05},
 }
@@ -302,13 +307,25 @@ def effective_bar(hypothesis: dict) -> float | None:
     metric = hypothesis["metric"]
     policy = POLICY[metric]
     proposed = hypothesis.get("threshold")
+    if metric == "retry_count":
+        # its decision rule (see POLICY) is a boolean strict-improvement check, not a numeric
+        # bar - fixed a latent bug here: retry_count's "kind" is also "paired," so without this
+        # early return the branch below would KeyError on policy["min_score"], which
+        # retry_count's policy entry deliberately doesn't have.
+        return None
     if policy["kind"] == "paired":
         floor = policy["min_score"]
-        return max(proposed, floor) if proposed is not None else floor
+        bar = max(proposed, floor) if proposed is not None else floor
+        auto_accept = policy.get("auto_accept")
+        if auto_accept is not None:
+            # never require MORE than auto_accept, no matter how high the agent's own
+            # proposed threshold was - a candidate this good is accepted unconditionally.
+            bar = min(bar, auto_accept)
+        return bar
     if metric == "success_rate":
         floor = policy["min_absolute_improvement"]
         return max(proposed, floor) if proposed is not None else floor
-    return None  # retry_count's decision rule doesn't use a numeric bar
+    return None
 
 
 def evaluate_metric(metric: str, baseline_suite: dict, candidate_suite: dict, mode: str, bar: float | None) -> tuple[bool, float | None]:
