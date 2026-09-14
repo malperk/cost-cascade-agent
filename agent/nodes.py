@@ -1,3 +1,4 @@
+import json
 from typing import Literal
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -117,6 +118,15 @@ class FinalAnswer(BaseModel):
 def _format_final_answer(args: dict) -> str:
     summary = args.get("summary", "")
     actions = args.get("actions_taken") or []
+    if isinstance(actions, str):
+        # weaker/local models occasionally emit this field as a JSON-encoded string instead
+        # of an actual array in their tool-call arguments - without this, iterating over that
+        # string prints one line per CHARACTER instead of one line per action.
+        try:
+            parsed = json.loads(actions)
+            actions = parsed if isinstance(parsed, list) else [actions]
+        except json.JSONDecodeError:
+            actions = [actions]
     if not actions:
         return summary
     actions_block = "\n".join(f"- {a}" for a in actions)

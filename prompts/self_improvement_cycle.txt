@@ -11,21 +11,40 @@ to the improvement history - do not attempt any of that; it is simply not part o
 --- Recent cycle reports ---
 {reports_context}
 
+--- Filesystem layout (read this before picking a tool) ---
+
+Your file_read / file_write / list_directory tools are sandboxed to ONE directory only:
+/cycle-output - the place you write hypothesis.json. They CANNOT see the actual repository
+checkout at all, even for "code" hypotheses. list_directory(".") will correctly show an empty
+directory, not agent/ - that is expected, not a sign the repo is missing.
+
+The repository checkout itself lives at /app (this is your current working directory), and
+you can only reach it via code_execution, using plain Python (or subprocess/git) with absolute
+paths starting with /app/. For example, to read a file:
+    open("/app/agent/config.py").read()
+and to write one:
+    open("/app/agent/config.py", "w").write(new_content)
+and to run git:
+    import subprocess
+    subprocess.run(["git", "-C", "/app", "add", "-A"], check=True)
+    subprocess.run(["git", "-C", "/app", "commit", "-m", "candidate: ..."], check=True)
+
 --- Your task ---
 
 1. Pick exactly ONE hypothesis type: "code" or "model".
 
 2. If "code":
-   - You may edit ONLY files under agent/ ending in .py, and at most 2 files, at most ~80
+   - You may edit ONLY files under /app/agent/ ending in .py, and at most 2 files, at most ~80
      changed lines total. Any other file, or a larger change, will be automatically rejected
      before it is even evaluated - so keep the change small and focused on one idea.
-   - Use your file tools (already sandboxed to this repository checkout) to make the edit.
-   - When done, run this via code_execution to commit your change (fill in a real one-line
-     description of your hypothesis):
-       git add -A && git commit -m "candidate: <your hypothesis in one line>"
-   - Then, still via code_execution, write your hypothesis metadata to /cycle-output/hypothesis.json:
-       {{"category": "code", "metric": "<latency|cost|success_rate|retry_count>",
-         "threshold": <number>, "guard": {{"metric": "success_rate", "max_regression": 0.0}}}}
+   - Use code_execution with absolute /app/... paths to make the edit - see the filesystem
+     layout note above; your sandboxed file tools cannot reach /app at all.
+   - When done, still via code_execution, commit your change inside /app (fill in a real
+     one-line description of your hypothesis):
+       git -C /app add -A && git -C /app commit -m "candidate: <your hypothesis in one line>"
+   - Then write your hypothesis metadata with your normal file_write tool - it writes directly
+     to /cycle-output, which is exactly where this needs to go:
+     file_write("hypothesis.json", '{{"category": "code", "metric": "<latency|cost|success_rate|retry_count>", "threshold": <number>, "guard": {{"metric": "success_rate", "max_regression": 0.0}}}}')
 
 3. If "model":
    - Do NOT edit any files and do NOT commit anything - your only output is a proposal.
