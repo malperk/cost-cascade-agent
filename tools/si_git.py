@@ -44,6 +44,18 @@ def shallow_clone(repo_path: Path, dest: Path) -> None:
         check=True,
         capture_output=True,
     )
+    configure_clone_identity(dest)
+
+
+def configure_clone_identity(clone_path: Path) -> None:
+    """A fresh clone has no author identity - HOME isn't mounted into the authoring container,
+    so there's no ~/.gitconfig to inherit one from, and `git commit` fails outright ("Please
+    tell me who you are") without this. Set once by the runner right after cloning, not left
+    for the agent to remember as an extra step."""
+    subprocess.run(
+        ["git", "config", "user.email", "self-improvement-loop@local"], cwd=clone_path, check=True
+    )
+    subprocess.run(["git", "config", "user.name", "self-improvement-loop"], cwd=clone_path, check=True)
 
 
 def git_archive_export(repo_path: Path, sha: str, dest: Path) -> None:

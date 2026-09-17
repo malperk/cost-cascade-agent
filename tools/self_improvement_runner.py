@@ -241,7 +241,13 @@ def ensure_image(source_dir: Path, base_sha: str) -> str:
     build_ctx.mkdir(parents=True, exist_ok=True)
     shutil.copy(source_dir / "requirements.txt", build_ctx / "requirements.txt")
     (build_ctx / "Dockerfile").write_text(
-        "FROM python:3.11-slim\nWORKDIR /app\nCOPY requirements.txt .\n"
+        "FROM python:3.11-slim\nWORKDIR /app\n"
+        # git is required inside the authoring container for a CODE hypothesis's
+        # `git -C /app add -A && git -C /app commit -m ...` step (base image has no git at
+        # all - a live cycle's code_execution call failed with FileNotFoundError without this).
+        "RUN apt-get update && apt-get install -y --no-install-recommends git "
+        "&& rm -rf /var/lib/apt/lists/*\n"
+        "COPY requirements.txt .\n"
         "RUN pip install --no-cache-dir -r requirements.txt\n"
     )
     subprocess.run(["docker", "build", "-t", tag, str(build_ctx)], check=True, capture_output=True)
