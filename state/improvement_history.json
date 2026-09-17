@@ -1,0 +1,15 @@
+[
+  {
+    "cycle_id": "20260917-123218-6083d6",
+    "timestamp": "2026-09-17T11:32:18.864793+00:00",
+    "category": "code",
+    "metric": "latency",
+    "fingerprint": "unknown",
+    "result": "fail",
+    "hypothesis": {},
+    "score": null,
+    "effective_bar": null,
+    "candidate_sha": null,
+    "report_path": "reports/20260917-123218-6083d6.md"
+  }
+]
