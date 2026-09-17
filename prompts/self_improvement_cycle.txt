@@ -51,6 +51,14 @@ and to run git:
    - Investigate candidate models/providers if useful (you have model-inference and web-search
      access through the usual tools; you do not have any ability to create, delete, or modify
      any OmniRoute combo yourself - only to propose one).
+   - candidate_provider MUST be one of these currently connected provider IDs - anything else
+     (including well-known provider names you might recognize from general knowledge, like
+     "openai" or "anthropic") is NOT wired up in this deployment and every call to it will
+     fail outright, guaranteeing your candidate gets rejected on the success_rate guard alone:
+       nvidia, groq, openrouter, cloudflare-ai, ollama-local, expl (Experiential Labs)
+     Pick a real model id that provider actually serves - if unsure, prefer reusing a
+     provider+model pairing mentioned in the cycle history/reports above over guessing a new
+     one from general knowledge.
    - Write your proposal to hypothesis.json (this is your AGENT_WORKSPACE_DIR for this task,
      so file_write("hypothesis.json", ...) writes it to the right place directly):
        {{"category": "model", "tier": "<low|mid|high|local>", "candidate_model": "<model id>",
