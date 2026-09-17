@@ -64,7 +64,14 @@ AUTHORING_TIMEOUT_SECONDS = 20 * 60
 # one run truncated its hypothesis.json write, another disengaged from the task entirely
 # after triage rated it low-risk. See agent/config.py's AGENT_MIN_TIER for the mechanism.
 AUTHORING_MIN_TIER = "mid"
-AUTHORING_MODEL_CALL_BUDGET = 15
+# A single un-escalated task already costs ~3 calls (triage + agent + review); the review
+# pipeline can escalate up to MAX_ATTEMPTS times (mid -> high -> local), each attempt adding
+# another agent+review pair, and infra-error retries multiply that further. A live cycle
+# exhausted the old budget of 15 mid-task (the broker's own 429 forced agent.main to give up
+# and return rejected without ever writing hypothesis.json) - raised to give real headroom for
+# at least one full escalation chain plus some retry slack, while still being a real, bounded
+# budget rather than unlimited.
+AUTHORING_MODEL_CALL_BUDGET = 40
 AUTHORING_SEARCH_CALL_BUDGET = 5
 
 HYPOTHESIS_SCHEMA = {
