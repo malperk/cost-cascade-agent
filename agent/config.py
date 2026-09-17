@@ -24,6 +24,18 @@ MAX_ATTEMPTS = int(os.getenv("MAX_ATTEMPTS", "4"))
 # risk and the model disengaged from it entirely rather than following the instructions.
 AGENT_MIN_TIER = os.getenv("AGENT_MIN_TIER", "low")
 
+# Review-driven escalation (agent/nodes.py:escalate_node) normally climbs all the way to
+# "local" (Ollama llama3.1:8b) as its last resort - fine for normal runs, where "local" exists
+# specifically so the system can never be fully stuck when every cloud tier is exhausted. But
+# "local" is a genuinely weak model for anything requiring precise multi-step tool calling: a
+# live self-improvement authoring cycle escalated there on a review failure and it emitted a
+# tool call as plain-text JSON instead of an actual tool invocation - correctly caught by
+# review as an unverified claim, but a wasted attempt that a stronger model wouldn't have
+# wasted. The self-improvement runner caps its authoring container at "high" via this env var
+# (default "local" - i.e. uncapped - for every normal run) so escalation repeats at "high"
+# instead of dropping to a weaker tier that's less likely to help.
+AGENT_MAX_TIER = os.getenv("AGENT_MAX_TIER", "local")
+
 # File/code tools are sandboxed to this directory - agents cannot read or write
 # anything outside of it (see agent/tools.py:_resolve_safe_path).
 WORKSPACE_DIR = Path(os.getenv("AGENT_WORKSPACE_DIR", "./workspace")).resolve()

@@ -64,6 +64,11 @@ AUTHORING_TIMEOUT_SECONDS = 20 * 60
 # one run truncated its hypothesis.json write, another disengaged from the task entirely
 # after triage rated it low-risk. See agent/config.py's AGENT_MIN_TIER for the mechanism.
 AUTHORING_MIN_TIER = "mid"
+# "local" (Ollama llama3.1:8b) is too weak for this task's multi-step tool calling - a live
+# cycle escalated there on a review failure and emitted a tool call as plain-text JSON instead
+# of an actual invocation. Capping at "high" means a failed review repeats at "high" instead
+# of dropping to a weaker model. See agent/config.py's AGENT_MAX_TIER for the mechanism.
+AUTHORING_MAX_TIER = "high"
 # A single un-escalated task already costs ~3 calls (triage + agent + review); the review
 # pipeline can escalate up to MAX_ATTEMPTS times (mid -> high -> local), each attempt adding
 # another agent+review pair, and infra-error retries multiply that further. A live cycle
@@ -268,6 +273,7 @@ def run_authoring_container(
         "-e", "BROKER_SOCKET_PATH=/run/broker.sock",
         "-e", "AGENT_WORKSPACE_DIR=/cycle-output",
         "-e", f"AGENT_MIN_TIER={AUTHORING_MIN_TIER}",
+        "-e", f"AGENT_MAX_TIER={AUTHORING_MAX_TIER}",
         "-w", "/app",
         image, "python3", "-m", "agent.main", prompt,
     ]

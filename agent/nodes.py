@@ -4,10 +4,23 @@ from typing import Literal
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
-from agent.config import AGENT_MIN_TIER, MAX_ATTEMPTS
+from agent.config import AGENT_MAX_TIER, AGENT_MIN_TIER, MAX_ATTEMPTS
 from agent.llm import INFRA_ERRORS, NEXT_TIER, client_for_tier, invoke_with_retry
 from agent.state import TaskState
 from agent.tools import ALL_TOOLS
+
+TIER_ORDER = ["low", "mid", "high", "local"]
+
+
+def _capped_next_tier(current_tier: str) -> str:
+    """Review-driven escalation's natural next tier, clamped at AGENT_MAX_TIER (default
+    "local" - uncapped, the normal-run behavior). Once the natural next tier would go past
+    the cap, repeat at the capped tier instead of dropping to a weaker one - see
+    agent/config.py's AGENT_MAX_TIER for why "local" specifically isn't always an improvement."""
+    natural_next = NEXT_TIER.get(current_tier, "local")
+    if TIER_ORDER.index(natural_next) > TIER_ORDER.index(AGENT_MAX_TIER):
+        return current_tier
+    return natural_next
 
 
 class TriageDecision(BaseModel):
@@ -223,7 +236,7 @@ def review_node(state: TaskState) -> dict:
 
 
 def escalate_node(state: TaskState) -> dict:
-    next_tier = NEXT_TIER.get(state.get("tier", "low"), "local")
+    next_tier = _capped_next_tier(state.get("tier", "low"))
     feedback = HumanMessage(
         content=(
             "Your previous answer did not pass review.\n"
