@@ -393,6 +393,31 @@ def evaluate_metric(metric: str, baseline_suite: dict, candidate_suite: dict, mo
     raise ValueError(f"unknown metric {metric}")
 
 
+# --- preflight ---
+
+
+def check_preflight() -> str | None:
+    """Checked before anything else touches Docker or OmniRoute (both external to this
+    process and not guaranteed to be running, e.g. for an unattended hourly schedule) - returns
+    None if ready, or a human-readable reason if not. Without this, an environment that isn't
+    up yet crashes with an unhandled exception before the try/except block that normally turns
+    a failure into a report+ledger entry even exists - it only gets swept up as a generic,
+    reason-less "(recovered)" fail on the next run instead of recording what actually happened."""
+    try:
+        docker_check = subprocess.run(["docker", "info"], capture_output=True, timeout=15)
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        return f"PREFLIGHT FAILED: could not run 'docker info' ({type(exc).__name__}: {exc})"
+    if docker_check.returncode != 0:
+        return "PREFLIGHT FAILED: Docker is not running ('docker info' returned non-zero - is Docker Desktop started?)"
+
+    try:
+        omniroute_admin.list_combos()
+    except Exception as exc:
+        return f"PREFLIGHT FAILED: OmniRoute is not reachable ({type(exc).__name__}: {exc})"
+
+    return None
+
+
 # --- main cycle ---
 
 
@@ -412,6 +437,14 @@ def run_cycle() -> None:
         journal = Journal(RUNTIME_ROOT / "journal.json")
         journal.update(cycle_id=cycle_id, phase="STARTED")
         print(f"=== self-improvement cycle {cycle_id} ===")
+
+        preflight_error = check_preflight()
+        if preflight_error:
+            print(preflight_error)
+            _write_fail(journal, cycle_id, runtime_dir, reason=preflight_error)
+            journal.delete()
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+            return
 
         base_sha = si_git.capture_base_sha(REPO_PATH)
         production_before = omniroute_admin.snapshot_all(PRODUCTION_COMBOS)
