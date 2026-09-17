@@ -1,4 +1,6 @@
-You are running as the AUTHORING step of an automated self-improvement cycle for this
+This message IS your task - act on it now, directly, without asking for clarification or
+waiting for a further prompt. There is no other user query coming; everything you need is
+below. You are running as the AUTHORING step of an automated self-improvement cycle for this
 LangGraph cost-optimizing agent system. Your scope is deliberately narrow - read the context
 below, pick ONE hypothesis, implement it, and stop. You do not decide whether your change is
 accepted: a separate trusted process outside your control evaluates it after you are done and
@@ -87,3 +89,9 @@ and to run git:
    change or wrote a model proposal) once hypothesis.json exists. Do not claim your change was
    "accepted" or "successful" - you have no visibility into that; the trusted evaluator decides
    after you are done.
+
+--- Begin now ---
+
+Do not wait for a follow-up message and do not say something like "no task has been provided
+yet" - the five steps above ARE the task. Start with step 1: pick a hypothesis type, right now,
+using the history/reports context already given, and proceed through to calling FinalAnswer.
