@@ -200,5 +200,29 @@
     "effective_bar": 0.1,
     "candidate_sha": null,
     "report_path": "reports/20260918-110733-253a1b.md"
+  },
+  {
+    "cycle_id": "20260918-135459-aca9a2",
+    "timestamp": "2026-09-18T13:00:57.362018+00:00",
+    "category": "model",
+    "metric": "latency",
+    "fingerprint": "d61447583c2364d4a6fc102f9070b6b1c9c808ee7a816aa32019b18938cc6e70",
+    "result": "fail",
+    "hypothesis": {
+      "category": "model",
+      "tier": "mid",
+      "candidate_model": "mixtral-8x7b",
+      "candidate_provider": "groq",
+      "metric": "latency",
+      "threshold": 0.05,
+      "guard": {
+        "metric": "success_rate",
+        "max_regression": 0.0
+      }
+    },
+    "score": -0.027568635155628806,
+    "effective_bar": 0.1,
+    "candidate_sha": null,
+    "report_path": "reports/20260918-135459-aca9a2.md"
   }
 ]
