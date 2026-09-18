@@ -128,5 +128,29 @@
     "effective_bar": null,
     "candidate_sha": null,
     "report_path": "reports/20260918-075111-899165.md"
+  },
+  {
+    "cycle_id": "20260918-083205-a3bab8",
+    "timestamp": "2026-09-18T07:43:50.467661+00:00",
+    "category": "model",
+    "metric": "latency",
+    "fingerprint": "dd87dc7534a9ab5469e20eefa09ee69ed3b61f386eb926a0d5849eb9d7527c76",
+    "result": "pass",
+    "hypothesis": {
+      "category": "model",
+      "tier": "local",
+      "candidate_model": "llama3",
+      "candidate_provider": "ollama-local",
+      "metric": "latency",
+      "threshold": 0.05,
+      "guard": {
+        "metric": "success_rate",
+        "max_regression": 0.0
+      }
+    },
+    "score": 0.231538092615698,
+    "effective_bar": 0.1,
+    "candidate_sha": null,
+    "report_path": "reports/20260918-083205-a3bab8.md"
   }
 ]
