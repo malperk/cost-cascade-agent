@@ -9,9 +9,6 @@ Python, never an LLM call.
 
 Known scope limitations of this initial implementation, stated rather than
 silently glossed over:
-  - Only eval_fixtures/fast_*.json exist right now (5 cases) - "full suite"
-    steps below reuse the fast suite rather than a separate, larger one.
-    Author full_*.json fixtures and point FULL_PATTERN at them to close this.
   - Transport tier 1 only (see tools/si_transport.py) - proven to work on
     this machine by the tier-1 spike; tiers 2/3 are documented, unimplemented
     fallbacks in the plan.
@@ -54,7 +51,11 @@ RUNTIME_ROOT = REPO_PATH / ".self-improve-runtime"
 CLONES_ROOT = REPO_PATH / ".self-improve-clones"
 FIXTURES_DIR = REPO_PATH / "eval_fixtures"
 FAST_PATTERN = "fast_*.json"
-FULL_PATTERN = "fast_*.json"  # see module docstring: no separate full_*.json fixtures yet
+# "full" now genuinely differs from "fast": eval_fixtures/full_*.json adds harder,
+# multi-step/reasoning/tool-sequencing cases (fast_*.json alone is easy enough that
+# success_rate barely moves between candidates - see prompts/self_improvement_cycle.txt's
+# note on why "code" hypotheses touching orchestration logic need real cases to show up on).
+FULL_PATTERN = "*.json"
 
 PRODUCTION_COMBO_NAME_FOR_TIER = {"low": "alper-low", "mid": "alper-mid", "high": "alper-high", "local": "alper-local"}
 PRODUCTION_COMBOS = list(PRODUCTION_COMBO_NAME_FOR_TIER.values())
@@ -550,13 +551,13 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
     bar = effective_bar(hypothesis)
     journal.update(effective_bar=bar)
 
-    def eval_with(socket_key: str, role_export: Path, tier_override: str | None) -> dict:
+    def eval_with(socket_key: str, role_export: Path, tier_override: str | None, pattern: str = FAST_PATTERN) -> dict:
         # tier_override routes that one tier through the temp combo instead of the container's
         # built-in default (which matches the real production combo name) - only ever set for
         # a MODEL hypothesis's candidate-side eval, never for baseline.
         env_overrides = {f"{tier_override.upper()}_MODEL": temp_combo} if tier_override else {}
         return eval_agent.run_suite(
-            FIXTURES_DIR, FAST_PATTERN, image, role_export,
+            FIXTURES_DIR, pattern, image, role_export,
             Path(channels[socket_key]), runtime_dir / "broker.log", eval_agent.DEFAULT_TIMEOUT_SECONDS,
             env_overrides=env_overrides, container_label=cycle_id,
         )
@@ -577,8 +578,8 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
         journal.update(score=score)
         if not ok:
             raise CycleFailed("success_rate fast gate did not pass")
-        baseline_full = eval_with("baseline", source_export, None)
-        candidate_full = eval_with("candidate", candidate_export, candidate_tier)
+        baseline_full = eval_with("baseline", source_export, None, pattern=FULL_PATTERN)
+        candidate_full = eval_with("candidate", candidate_export, candidate_tier, pattern=FULL_PATTERN)
         ok, score = evaluate_metric(metric, baseline_full, candidate_full, "full", bar)
         journal.update(score=score)
         if not ok:
@@ -603,7 +604,7 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
             raise CycleFailed(f"{metric} paired benchmark did not pass (score={score}, bar={bar})")
 
         print("running full regression suite (candidate-only)...")
-        full_candidate = eval_with("candidate", candidate_export, candidate_tier)
+        full_candidate = eval_with("candidate", candidate_export, candidate_tier, pattern=FULL_PATTERN)
         if full_candidate["passed"] != full_candidate["total"]:
             raise CycleFailed("full regression suite failed on candidate")
 

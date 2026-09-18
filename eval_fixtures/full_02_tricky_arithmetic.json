@@ -1,0 +1,13 @@
+{
+  "id": "full_02_tricky_arithmetic",
+  "prompt": "A baker has 24 cupcakes. She sells half of them, then bakes 15 more, then donates a third of what she now has to a school. How many cupcakes does the baker have left? Reply with just the number.",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [
+      "18"
+    ],
+    "required_tool": null,
+    "max_attempts": 4,
+    "baseline_call_count": 2
+  }
+}

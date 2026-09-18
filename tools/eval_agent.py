@@ -13,7 +13,10 @@ independently verified only for "file_write" (via the workspace mount) and
 "web_search" (via the broker's own call log) - other tool names are recorded
 from the fixture but not cross-checked against what actually happened, so a
 case relying on one of those should also carry a strong `answer_contains`
-assertion as its real evidence.
+assertion as its real evidence. `expected.files` (a list of
+{"name": ..., "contains": ...}) is checked directly against the workspace
+mount's actual contents after the run - stronger than answer_contains, since
+it doesn't depend on the model's own summary being accurate.
 """
 
 import argparse
@@ -118,6 +121,14 @@ def run_case(
 
     answer = _extract_answer(stdout)
     answer_contains_ok = all(term.lower() in answer.lower() for term in expected.get("answer_contains", []))
+    # "any of" semantics for cases with several equally-correct natural phrasings (e.g. a model
+    # reporting a missing file might say "not found", "does not exist," or "no such file" -
+    # all correct, none guaranteed) - answer_contains alone can't express that without being
+    # so literal it produces false negatives on an answer that was actually right.
+    if expected.get("answer_contains_any"):
+        answer_contains_ok = answer_contains_ok and any(
+            term.lower() in answer.lower() for term in expected["answer_contains_any"]
+        )
     exit_code_ok = (not timed_out) and exit_code == expected.get("exit_code", 0)
 
     tool_check = {"expected": expected.get("required_tool"), "method": "not_checked", "verified": None}
@@ -136,7 +147,23 @@ def run_case(
 
     call_count = _tail_broker_log_calls(broker_log_path, since_line_count) if broker_log_path else None
 
-    passed = exit_code_ok and answer_contains_ok and tool_check.get("verified") is not False
+    # Checks the actual files on disk, not what the model claims it wrote - consistent with
+    # this project's whole "verify what's actually true, not what's asserted" principle. Each
+    # entry is {"name": <path relative to workspace>, "contains": <substring>}.
+    files_ok = True
+    files_detail = []
+    for spec in expected.get("files", []):
+        file_path = workspace_dir / spec["name"]
+        if not file_path.is_file():
+            files_ok = False
+            files_detail.append({"name": spec["name"], "exists": False, "contains_ok": False})
+            continue
+        content = file_path.read_text(errors="replace")
+        contains_ok = spec.get("contains", "") in content
+        files_ok = files_ok and contains_ok
+        files_detail.append({"name": spec["name"], "exists": True, "contains_ok": contains_ok})
+
+    passed = exit_code_ok and answer_contains_ok and tool_check.get("verified") is not False and files_ok
 
     result = {
         "id": case_id,
@@ -145,6 +172,7 @@ def run_case(
         "timed_out": timed_out,
         "answer_contains_ok": answer_contains_ok,
         "tool_check": tool_check,
+        "files_check": {"ok": files_ok, "detail": files_detail},
         "latency_seconds": latency_seconds,
         "broker_call_count": call_count,
         "baseline_call_count": expected.get("baseline_call_count"),

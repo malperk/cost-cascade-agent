@@ -1,0 +1,25 @@
+{
+  "id": "full_01_multi_step_files",
+  "prompt": "Create three files in the workspace: greeting.txt containing exactly 'Hello there', count.txt containing exactly '5', and colors.txt containing exactly 'red,green,blue'. All three files must be created with exactly that content.",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [],
+    "required_tool": "file_write",
+    "max_attempts": 4,
+    "baseline_call_count": 9,
+    "files": [
+      {
+        "name": "greeting.txt",
+        "contains": "Hello there"
+      },
+      {
+        "name": "count.txt",
+        "contains": "5"
+      },
+      {
+        "name": "colors.txt",
+        "contains": "red,green,blue"
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "full_05_precise_calculation",
+  "prompt": "Use the calculator tool to compute 47293 multiplied by 8371 exactly. Reply with just the exact result, no rounding or approximation.",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [
+      "395889703"
+    ],
+    "required_tool": "calculator",
+    "max_attempts": 4,
+    "baseline_call_count": 10
+  }
+}

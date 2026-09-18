@@ -1,0 +1,17 @@
+{
+  "id": "full_04_sequenced_tools",
+  "prompt": "Search the web to find out what year Python 3.12 was released, then create a file called python_year.txt in the workspace containing exactly that year as a number (just the 4 digits, nothing else).",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [],
+    "required_tool": "web_search",
+    "max_attempts": 4,
+    "baseline_call_count": 8,
+    "files": [
+      {
+        "name": "python_year.txt",
+        "contains": "2023"
+      }
+    ]
+  }
+}

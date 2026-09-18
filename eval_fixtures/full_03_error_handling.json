@@ -1,0 +1,19 @@
+{
+  "id": "full_03_error_handling",
+  "prompt": "Read the file called does_not_exist_yet.txt from the workspace and tell me its contents. If it doesn't exist, say so clearly instead of making something up.",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": [],
+    "answer_contains_any": [
+      "not found",
+      "does not exist",
+      "doesn't exist",
+      "no such file",
+      "does not appear to exist",
+      "could not find"
+    ],
+    "required_tool": null,
+    "max_attempts": 4,
+    "baseline_call_count": 9
+  }
+}

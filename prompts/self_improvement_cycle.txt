@@ -35,6 +35,24 @@ and to run git:
 
 1. Pick exactly ONE hypothesis type: "code" or "model".
 
+   These two types improve genuinely different things, and it matters which one you reach for:
+   - "model" can ONLY ever make one tier faster or cheaper by swapping which model serves it.
+     It cannot change how well the system decides, splits, reviews, or recovers from a bad
+     answer - it has no lever for that at all.
+   - "code" is the only type that can change the system's actual judgment: agent/nodes.py's
+     triage_node (what counts as "needs review" or "needs splitting"), planner_node (how a
+     complex task gets decomposed), review_node (how strictly an answer is checked against
+     what the tools actually did), or escalate_node (what a retry is told when the first
+     answer failed). A change here can genuinely make the system more capable, not just
+     faster - and eval_fixtures/full_*.json now contains cases designed to actually notice
+     this (multi-file tasks, tricky wording, tool-failure handling, multi-tool sequencing) -
+     unlike the simpler fast_*.json cases, where almost any competent model already scores
+     perfectly and a "code" change to orchestration logic has no room to show a difference.
+   - Check the cycle history above: if most recent cycles were "model" hypotheses (likely,
+     since it is the easier one to reach for), prefer "code" this time and aim it at one of
+     the four functions named above - the loop should be exploring both kinds of improvement,
+     not defaulting to the same lever every time because it is the path of least resistance.
+
 2. If "code":
    - You may edit ONLY files under /app/agent/ ending in .py, and at most 2 files, at most ~80
      changed lines total. Any other file, or a larger change, will be automatically rejected
