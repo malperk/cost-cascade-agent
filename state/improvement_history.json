@@ -224,5 +224,29 @@
     "effective_bar": 0.1,
     "candidate_sha": null,
     "report_path": "reports/20260918-135459-aca9a2.md"
+  },
+  {
+    "cycle_id": "20260918-155852-9151d8",
+    "timestamp": "2026-09-18T15:02:43.849845+00:00",
+    "category": "model",
+    "metric": "latency",
+    "fingerprint": "b900facf01bcaf7f4ba915c97a545d754ad2042ce3ec2a16f521cb9f05f037e7",
+    "result": "fail",
+    "hypothesis": {
+      "category": "model",
+      "tier": "mid",
+      "candidate_model": "llama3-8b",
+      "candidate_provider": "groq",
+      "metric": "latency",
+      "threshold": 0.04,
+      "guard": {
+        "metric": "success_rate",
+        "max_regression": 0.0
+      }
+    },
+    "score": -0.02886498692787782,
+    "effective_bar": 0.1,
+    "candidate_sha": null,
+    "report_path": "reports/20260918-155852-9151d8.md"
   }
 ]
