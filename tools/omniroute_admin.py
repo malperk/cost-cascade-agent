@@ -76,6 +76,27 @@ def promote_combo(name: str, models: list[dict], strategy: str = "priority") -> 
     return create_combo(name, models, strategy)
 
 
+def smoke_test_combo(name: str, timeout: float = 30.0) -> tuple[bool, str]:
+    """A real chat-completion call against the combo's production name - not just checking
+    that its stored definition matches what was intended. A live promotion (alper-local ->
+    ollama-local/llama3, a model that turned out not to actually be pulled locally) passed
+    every eval case at the time but was 404-broken minutes later; the paired-benchmark eval
+    happening to have worked is not the same guarantee as the promoted combo actually being
+    live right now. Returns (ok, detail)."""
+    with _client() as c:
+        try:
+            resp = c.post(
+                "/v1/chat/completions",
+                json={"model": name, "messages": [{"role": "user", "content": "reply with OK"}]},
+                timeout=timeout,
+            )
+        except httpx.HTTPError as exc:
+            return False, f"{type(exc).__name__}: {exc}"
+    if resp.status_code != 200:
+        return False, f"HTTP {resp.status_code}: {resp.text[:300]}"
+    return True, "ok"
+
+
 def combos_equal(a: dict | None, b: dict | None) -> bool:
     """Definition equality for drift/integrity checks - ignores volatile fields
     (timestamps, version counters) that change on every write without the actual

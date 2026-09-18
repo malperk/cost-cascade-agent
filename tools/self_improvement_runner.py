@@ -627,6 +627,14 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
         if not omniroute_admin.combos_equal(live, promoted):
             omniroute_admin.promote_combo(PRODUCTION_COMBO_NAME_FOR_TIER[hypothesis["tier"]], expected["models"])
             raise CycleFailed("promotion verification failed - restored prior production combo")
+        # Definitional match isn't enough - a live cycle promoted alper-local to a model that
+        # wasn't actually pulled in the local Ollama installation; every eval call happened to
+        # work at the time but the combo was 404-broken minutes later. A real inference call
+        # against the promoted production name is the only thing that actually confirms it works.
+        smoke_ok, smoke_detail = omniroute_admin.smoke_test_combo(PRODUCTION_COMBO_NAME_FOR_TIER[hypothesis["tier"]])
+        if not smoke_ok:
+            omniroute_admin.promote_combo(PRODUCTION_COMBO_NAME_FOR_TIER[hypothesis["tier"]], expected["models"])
+            raise CycleFailed(f"post-promotion smoke test failed - restored prior production combo ({smoke_detail})")
         omniroute_admin.delete_combo(temp_combo)
     journal.set_phase("PROMOTION_VERIFIED")
 
