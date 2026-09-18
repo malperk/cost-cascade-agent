@@ -102,5 +102,18 @@
     "effective_bar": null,
     "candidate_sha": null,
     "report_path": "reports/20260918-024339-c04451.md"
+  },
+  {
+    "cycle_id": "20260918-043129-479749",
+    "timestamp": "2026-09-18T03:31:29.701169+00:00",
+    "category": "code",
+    "metric": "latency",
+    "fingerprint": "unknown",
+    "result": "fail",
+    "hypothesis": {},
+    "score": null,
+    "effective_bar": null,
+    "candidate_sha": null,
+    "report_path": "reports/20260918-043129-479749.md"
   }
 ]
