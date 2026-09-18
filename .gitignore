@@ -7,4 +7,5 @@ __pycache__/
 .self-improve-clones/
 .self-improve-runtime/
 .self_improvement.lock
-.claude/
+.claude/*
+!.claude/settings.json
