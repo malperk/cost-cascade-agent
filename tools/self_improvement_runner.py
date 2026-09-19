@@ -278,7 +278,14 @@ def run_authoring_container(
         "-w", "/app",
         image, "python3", "-m", "agent.main", prompt,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=AUTHORING_TIMEOUT_SECONDS)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=AUTHORING_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as e:
+        subprocess.run(["docker", "rm", "-f", f"self-improve-author-{cycle_id}"], capture_output=True)
+        partial = "".join(
+            x.decode(errors="replace") if isinstance(x, bytes) else (x or "") for x in (e.stdout, e.stderr)
+        )
+        return 124, f"[authoring timed out after {AUTHORING_TIMEOUT_SECONDS}s]\n{partial}"
     return proc.returncode, proc.stdout + proc.stderr
 
 
@@ -519,6 +526,9 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
         if not omniroute_admin.combos_equal(production_before[name], production_after[name]):
             raise CycleFailed(f"INTEGRITY FAIL: production combo {name} changed during authoring")
 
+    if not (cycle_output_dir / "hypothesis.json").exists():
+        tail = log.strip()[-600:]
+        raise CycleFailed(f"authoring produced no hypothesis.json (container exit {exit_code}); log tail: {tail}")
     hypothesis = _read_hypothesis_json(cycle_output_dir, journal)
     journal.update(hypothesis=hypothesis, category=hypothesis["category"], metric=hypothesis["metric"])
     print(f"hypothesis: {hypothesis}")

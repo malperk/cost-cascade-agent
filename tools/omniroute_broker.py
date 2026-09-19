@@ -161,7 +161,7 @@ class BrokerHandler(BaseHTTPRequestHandler):
 
     def _handle_search(self, body: bytes):
         if not self.server.budget.take_search_call():
-            return self._deny(429, "search call budget exhausted for this role")
+            return self._deny(403, "search call budget exhausted for this role")
         try:
             payload = json.loads(body or b"{}")
             query = payload.get("query", "")
@@ -174,7 +174,7 @@ class BrokerHandler(BaseHTTPRequestHandler):
 
     def _handle_inference(self, method: str, body: bytes):
         if not self.server.budget.take_model_call():
-            return self._deny(429, "model call budget exhausted for this role")
+            return self._deny(403, "model call budget exhausted for this role")
 
         url = self.server.upstream_root + self.path
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {REAL_API_KEY}"}
