@@ -7,8 +7,8 @@
   "properties": {
     "cycle_id": {"type": "string"},
     "timestamp": {"type": "string", "format": "date-time"},
-    "category": {"enum": ["code", "model"]},
-    "metric": {"enum": ["latency", "cost", "success_rate", "retry_count"]},
+    "category": {"enum": ["code", "model", "n/a"], "description": "\"n/a\" means the cycle failed (preflight, infra error, crash) before any hypothesis was ever read - never assume \"code\"/\"model\" here reflects a real agent choice unless result/score/hypothesis corroborate it"},
+    "metric": {"enum": ["latency", "cost", "success_rate", "retry_count", "n/a"]},
     "fingerprint": {"type": "string", "description": "sha256 hex digest - see self-improvement plan section 8 for the exact formula per category"},
     "result": {"enum": ["pass", "fail"]},
     "hypothesis": {"type": "object"},

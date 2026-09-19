@@ -214,8 +214,8 @@ def _finalize(state: dict, result: str, reason: str, score) -> None:
     entry = {
         "cycle_id": cycle_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "category": state.get("category", "code"),
-        "metric": state.get("metric", "latency"),
+        "category": state.get("category", "n/a"),
+        "metric": state.get("metric", "n/a"),
         "fingerprint": state.get("fingerprint", "unknown"),
         "result": result,
         "hypothesis": state.get("hypothesis", {}),
@@ -308,7 +308,13 @@ def _build_history_context() -> str:
     if not history_path.exists():
         return "(no prior cycles recorded)"
     history = json.loads(history_path.read_text())
-    lines = [f"- {e['result']}: {e['category']}/{e['metric']} (fingerprint {e['fingerprint'][:12]}...)" for e in history[-10:]]
+    # "n/a" entries are preflight/infra failures before any hypothesis was ever read - not a
+    # real prior attempt, and showing them would just be confusing noise ("code/n/a"). Entries
+    # written before this filter existed may still say "code" for what was actually an infra
+    # failure (a known, accepted historical artifact - ledger entries are append-only and
+    # never rewritten), so this only cleans up cycles going forward.
+    real_attempts = [e for e in history if e.get("category") != "n/a"]
+    lines = [f"- {e['result']}: {e['category']}/{e['metric']} (fingerprint {e['fingerprint'][:12]}...)" for e in real_attempts[-10:]]
     return "\n".join(lines) or "(no prior cycles recorded)"
 
 
@@ -692,8 +698,8 @@ def _write_fail(journal: Journal, cycle_id: str, runtime_dir: Path, reason: str)
     entry = {
         "cycle_id": cycle_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "category": journal.data.get("category", "code"),
-        "metric": journal.data.get("metric", "latency"),
+        "category": journal.data.get("category", "n/a"),
+        "metric": journal.data.get("metric", "n/a"),
         "fingerprint": journal.data.get("fingerprint", "unknown"),
         "result": "fail",
         "hypothesis": journal.data.get("hypothesis", {}),
