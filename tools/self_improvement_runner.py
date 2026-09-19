@@ -308,12 +308,10 @@ def _build_history_context() -> str:
     if not history_path.exists():
         return "(no prior cycles recorded)"
     history = json.loads(history_path.read_text())
-    # "n/a" entries are preflight/infra failures before any hypothesis was ever read - not a
-    # real prior attempt, and showing them would just be confusing noise ("code/n/a"). Entries
-    # written before this filter existed may still say "code" for what was actually an infra
-    # failure (a known, accepted historical artifact - ledger entries are append-only and
-    # never rewritten), so this only cleans up cycles going forward.
-    real_attempts = [e for e in history if e.get("category") != "n/a"]
+    # "n/a" entries, and older entries mislabeled "code" before "n/a" existed, are cycles that
+    # never produced a fingerprintable hypothesis (fingerprint == "unknown"): not a real prior
+    # idea to avoid repeating. The ledger itself stays append-only; only this view is filtered.
+    real_attempts = [e for e in history if e.get("category") != "n/a" and e.get("fingerprint") != "unknown"]
     lines = [f"- {e['result']}: {e['category']}/{e['metric']} (fingerprint {e['fingerprint'][:12]}...)" for e in real_attempts[-10:]]
     return "\n".join(lines) or "(no prior cycles recorded)"
 
