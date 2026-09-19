@@ -282,5 +282,26 @@
     "effective_bar": null,
     "candidate_sha": null,
     "report_path": "reports/20260918-195234-493840.md"
+  },
+  {
+    "cycle_id": "20260919-005312-e509fd",
+    "timestamp": "2026-09-19T01:44:36.485881+00:00",
+    "category": "code",
+    "metric": "latency",
+    "fingerprint": "unknown",
+    "result": "fail",
+    "hypothesis": {
+      "category": "code",
+      "metric": "latency",
+      "threshold": 0.05,
+      "guard": {
+        "metric": "success_rate",
+        "max_regression": 0.0
+      }
+    },
+    "score": null,
+    "effective_bar": null,
+    "candidate_sha": null,
+    "report_path": "reports/20260919-005312-e509fd.md"
   }
 ]
