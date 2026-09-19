@@ -73,7 +73,7 @@ def triage_node(state: TaskState) -> dict:
         "split_needed": split_needed,
         "split_mode": "sequential" if sequential else "parallel",
         "risk_level": decision.risk_level,
-        "review_needed": decision.review_needed,
+        "review_needed": decision.review_needed and not (decision.risk_level == "low" and decision.distinct_steps <= 1),
         "triage_reasoning": decision.reasoning,
         "tier": AGENT_MIN_TIER,
         "attempt_count": 0,
