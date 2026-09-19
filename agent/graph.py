@@ -13,6 +13,7 @@ from agent.nodes import (
     route_after_planner,
     route_after_review,
     route_after_triage,
+    run_sequential_node,
     run_subtask_node,
     triage_node,
 )
@@ -26,6 +27,7 @@ def build_graph():
     graph.add_node("triage", triage_node)
     graph.add_node("planner", planner_node)
     graph.add_node("run_subtask", run_subtask_node)
+    graph.add_node("run_sequential", run_sequential_node)
     graph.add_node("aggregate", aggregate_node)
     graph.add_node("agent", agent_node)
     graph.add_node("tools", ToolNode(ALL_TOOLS))
@@ -36,8 +38,9 @@ def build_graph():
 
     graph.add_edge(START, "triage")
     graph.add_conditional_edges("triage", route_after_triage, ["planner", "agent"])
-    graph.add_conditional_edges("planner", route_after_planner, ["run_subtask"])
+    graph.add_conditional_edges("planner", route_after_planner, ["run_subtask", "run_sequential"])
     graph.add_edge("run_subtask", "aggregate")
+    graph.add_edge("run_sequential", END)
     graph.add_edge("aggregate", END)
     graph.add_conditional_edges("agent", route_after_agent, ["tools", "review", "accept"])
     graph.add_edge("tools", "agent")

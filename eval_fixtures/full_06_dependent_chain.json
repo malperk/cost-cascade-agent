@@ -1,0 +1,16 @@
+{
+  "id": "full_06_dependent_chain",
+  "prompt": "Do these steps in order. 1) Create numbers.txt containing exactly '3,5,8'. 2) Read numbers.txt back and use the calculator tool to add those three numbers, then create sum.txt containing exactly the total. 3) Create report.txt containing exactly 'total=' followed immediately by the value from sum.txt (read sum.txt, do not assume it). 4) Reply with the contents of report.txt.",
+  "expected": {
+    "exit_code": 0,
+    "answer_contains": ["total=16"],
+    "required_tool": "file_write",
+    "max_attempts": 4,
+    "baseline_call_count": 26,
+    "files": [
+      {"name": "numbers.txt", "contains": "3,5,8"},
+      {"name": "sum.txt", "contains": "16"},
+      {"name": "report.txt", "contains": "total=16"}
+    ]
+  }
+}

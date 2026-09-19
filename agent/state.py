@@ -10,6 +10,7 @@ class TaskState(TypedDict, total=False):
 
     # triage decision
     split_needed: bool
+    split_mode: Literal["parallel", "sequential"]
     risk_level: Literal["low", "medium", "high"]
     review_needed: bool
     triage_reasoning: str

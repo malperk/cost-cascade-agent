@@ -10,6 +10,7 @@ from agent.state import TaskState
 from agent.tools import ALL_TOOLS
 
 TIER_ORDER = ["low", "mid", "high", "local"]
+SEQUENTIAL_MIN_STEPS = 3
 
 
 def _capped_next_tier(current_tier: str) -> str:
@@ -27,6 +28,8 @@ class TriageDecision(BaseModel):
     split_needed: bool = Field(description="True only if the task is genuinely complex enough to benefit from decomposition into subtasks")
     risk_level: Literal["low", "medium", "high"] = Field(description="How likely a cheap model is to get this wrong")
     review_needed: bool = Field(description="True only if there is meaningful risk the cheap model's output is wrong and needs checking")
+    distinct_steps: int = Field(description="How many separate ACTIONS the task asks you to perform with tools or as distinct deliverables (writing a file, running a command, searching, committing...), counted literally. Stages of reasoning or arithmetic inside one question are NOT separate steps (e.g. 'sell half, bake 15 more, donate a third' is 0-1 action, not 3). (e.g. 'read X, then pick Y, then edit Z, then commit, then write W' is 5)")
+    steps_are_dependent: bool = Field(description="True if later steps need the results or side effects of earlier steps (e.g. edit a file, THEN commit that edit), so they must run in order rather than independently")
     reasoning: str = Field(description="One sentence justifying the above decisions")
 
 
@@ -51,6 +54,9 @@ def triage_node(state: TaskState) -> dict:
         llm,
         "Assess this task and decide the minimum necessary execution path.\n"
         "Only ask for splitting if the task is genuinely complex (multiple distinct deliverables).\n"
+        "Count distinct_steps as tool actions/deliverables, not reasoning stages, and say whether later steps depend on earlier ones "
+        "(steps_are_dependent) - these two facts matter more than your overall impression of "
+        "the task's difficulty.\n"
         "Only ask for review if a cheap/fast model plausibly could get it wrong (ambiguity, "
         "precision-sensitive output, multi-step reasoning, factual risk).\n"
         "Also mark review_needed=True whenever the task requires taking an action through a tool "
@@ -59,9 +65,13 @@ def triage_node(state: TaskState) -> dict:
         "answer needs to be checked against what was actually done.\n\n"
         f"Task: {state['task']}",
     )
-    split_needed = decision.split_needed and depth == 0  # never split subtasks further
+    # A dependent chain of 3+ steps runs as an ordered pipeline (each step sees earlier results);
+    # independent deliverables keep the original parallel split. Never split subtasks further.
+    sequential = depth == 0 and decision.steps_are_dependent and decision.distinct_steps >= SEQUENTIAL_MIN_STEPS
+    split_needed = depth == 0 and (sequential or (decision.split_needed and not decision.steps_are_dependent))
     return {
         "split_needed": split_needed,
+        "split_mode": "sequential" if sequential else "parallel",
         "risk_level": decision.risk_level,
         "review_needed": decision.review_needed,
         "triage_reasoning": decision.reasoning,
@@ -72,12 +82,20 @@ def triage_node(state: TaskState) -> dict:
 
 def planner_node(state: TaskState) -> dict:
     llm = client_for_tier(AGENT_MIN_TIER).with_structured_output(SplitPlan, method="json_schema")
-    plan: SplitPlan = invoke_with_retry(
-        llm,
-        "Break this task into 2-6 self-contained subtasks that together fully accomplish it. "
-        "Each subtask should be independently executable.\n\n"
-        f"Task: {state['task']}",
-    )
+    if state.get("split_mode") == "sequential":
+        instruction = (
+            "Break this task into 2-6 ORDERED steps that together fully accomplish it. The steps run "
+            "one after another in the same workspace: each step can rely on files and results left by "
+            "earlier steps, so do not repeat earlier work. Each step must state precisely what to do "
+            "(exact file names and exact content from the task, in the task's own wording), not just a topic. "
+            "Do not invent shell commands or tools the task did not mention."
+        )
+    else:
+        instruction = (
+            "Break this task into 2-6 self-contained subtasks that together fully accomplish it. "
+            "Each subtask should be independently executable."
+        )
+    plan: SplitPlan = invoke_with_retry(llm, f"{instruction}\n\nTask: {state['task']}")
     return {"subtasks": plan.subtasks}
 
 
@@ -88,6 +106,28 @@ def run_subtask_node(state: TaskState) -> dict:
         {"task": state["task"], "depth": state.get("depth", 1)}
     )
     return {"subtask_results": [result.get("final_output", "")]}
+
+
+def run_sequential_node(state: TaskState) -> dict:
+    import agent.graph as graph_module  # lazy import avoids circular import at module load time
+
+    steps = state["subtasks"]
+    done: list[str] = []
+    for i, step in enumerate(steps, 1):
+        context = "\n\n".join(f"Step {j} result:\n{r}" for j, r in enumerate(done, 1)) or "(none - this is the first step)"
+        step_task = (
+            f"Overall task (for context only):\n{state['task']}\n\n"
+            f"Results of the steps already completed (their files are already in the workspace):\n{context}\n\n"
+            f"You are step {i} of {len(steps)}. Do ONLY this step, fully and literally:\n{step}"
+        )
+        result = graph_module.app.invoke({"task": step_task, "depth": 1}).get("final_output", "")
+        if result.startswith("TASK FAILED"):
+            return {
+                "review_passed": False,
+                "final_output": f"TASK FAILED: step {i} of {len(steps)} ('{step}') could not be completed.\n\n{result}",
+            }
+        done.append(result)
+    return {"final_output": "\n\n".join(f"### {step}\n{r}" for step, r in zip(steps, done))}
 
 
 def aggregate_node(state: TaskState) -> dict:
@@ -275,6 +315,9 @@ def route_after_triage(state: TaskState) -> Literal["planner", "agent"]:
 
 def route_after_planner(state: TaskState):
     from langgraph.types import Send
+
+    if state.get("split_mode") == "sequential":
+        return "run_sequential"
 
     return [
         Send("run_subtask", {"task": t, "depth": state.get("depth", 0) + 1})
