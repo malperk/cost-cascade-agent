@@ -633,5 +633,26 @@
     "effective_bar": null,
     "candidate_sha": null,
     "report_path": "reports/20260920-205227-325fd4.md"
+  },
+  {
+    "cycle_id": "20260920-221255-78621a",
+    "timestamp": "2026-09-20T21:15:56.937027+00:00",
+    "category": "code",
+    "metric": "success_rate",
+    "fingerprint": "unknown",
+    "result": "fail",
+    "hypothesis": {
+      "category": "code",
+      "metric": "success_rate",
+      "threshold": 0.03,
+      "guard": {
+        "metric": "success_rate",
+        "max_regression": 0.0
+      }
+    },
+    "score": null,
+    "effective_bar": null,
+    "candidate_sha": null,
+    "report_path": "reports/20260920-221255-78621a.md"
   }
 ]
