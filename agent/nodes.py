@@ -51,6 +51,9 @@ def triage_node(state: TaskState) -> dict:
     # part of the observed failure (it rated the task low-risk/no-review-needed).
     llm = client_for_tier(AGENT_MIN_TIER).with_structured_output(TriageDecision, method="json_schema")
     decision: TriageDecision = invoke_with_retry(
+        # Heuristic: ensure review for tasks with multiple distinct steps to improve success rate
+        if decision.distinct_steps >= 2 and not decision.review_needed:
+            decision.review_needed = True
         llm,
         "Assess this task and decide the minimum necessary execution path.\n"
         "Only ask for splitting if the task is genuinely complex (multiple distinct deliverables).\n"
