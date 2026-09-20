@@ -10,7 +10,7 @@ from agent.state import TaskState
 from agent.tools import ALL_TOOLS
 
 TIER_ORDER = ["low", "mid", "high", "local"]
-SEQUENTIAL_MIN_STEPS = 3
+SEQUENTIAL_MIN_STEPS = 2
 
 
 def _capped_next_tier(current_tier: str) -> str:
