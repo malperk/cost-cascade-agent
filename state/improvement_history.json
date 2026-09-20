@@ -523,5 +523,18 @@
     "effective_bar": 0.05,
     "candidate_sha": "77732831204355f8768f0e3b8e5dcab6f36e8b30",
     "report_path": "reports/20260920-074815-004aac.md"
+  },
+  {
+    "cycle_id": "20260920-085131-3167d7",
+    "timestamp": "2026-09-20T07:55:34.707273+00:00",
+    "category": "n/a",
+    "metric": "n/a",
+    "fingerprint": "unknown",
+    "result": "fail",
+    "hypothesis": {},
+    "score": null,
+    "effective_bar": null,
+    "candidate_sha": null,
+    "report_path": "reports/20260920-085131-3167d7.md"
   }
 ]
