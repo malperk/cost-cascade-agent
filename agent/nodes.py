@@ -15,15 +15,8 @@ SEQUENTIAL_MIN_STEPS = 3
 
 def _capped_next_tier(current_tier: str) -> str:
     """Review-driven escalation's natural next tier, clamped at AGENT_MAX_TIER (default
-    "local" - uncapped, the normal-run behavior). Once the natural next tier would go past
-    the cap, repeat at the capped tier instead of dropping to a weaker one - see
-    agent/config.py's AGENT_MAX_TIER for why "local" specifically isn't always an improvement."""
     natural_next = NEXT_TIER.get(current_tier, "local")
-    if TIER_ORDER.index(natural_next) > TIER_ORDER.index(AGENT_MAX_TIER):
-        return current_tier
     return natural_next
-
-
 class TriageDecision(BaseModel):
     split_needed: bool = Field(description="True only if the task is genuinely complex enough to benefit from decomposition into subtasks")
     risk_level: Literal["low", "medium", "high"] = Field(description="How likely a cheap model is to get this wrong")
