@@ -64,7 +64,9 @@ AUTHORING_TIMEOUT_SECONDS = 20 * 60
 # Live testing showed "low" tier unreliable for this long, meta, instruction-heavy prompt:
 # one run truncated its hypothesis.json write, another disengaged from the task entirely
 # after triage rated it low-risk. See agent/config.py's AGENT_MIN_TIER for the mechanism.
-AUTHORING_MIN_TIER = "mid"
+# Raised to "high" after the five-step sequential pipeline still failed at "mid" (steps reported
+# success without doing the work, or wrote nonsense hypothesis.json). Authoring runs once per cycle.
+AUTHORING_MIN_TIER = "high"
 # "local" (Ollama llama3.1:8b) is too weak for this task's multi-step tool calling - a live
 # cycle escalated there on a review failure and emitted a tool call as plain-text JSON instead
 # of an actual invocation. Capping at "high" means a failed review repeats at "high" instead
