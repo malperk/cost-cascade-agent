@@ -218,9 +218,9 @@ def agent_node(state: TaskState) -> dict:
         response = invoke_with_retry(llm, messages)
         fell_back_tier = None
     except INFRA_ERRORS:
-        next_tier = NEXT_TIER.get(tier)
-        if next_tier is None:
-            raise  # already at the last tier (local), nothing left to fall back to
+        next_tier = _capped_next_tier(tier) if NEXT_TIER.get(tier) else None
+        if next_tier is None or next_tier == tier:
+            raise  # nothing left to fall back to within AGENT_MAX_TIER (never silently drop to a weaker tier)
         # this tier's provider pool is unavailable (not a quality problem) -
         # fall back to the next tier up so the run still completes.
         response = invoke_with_retry(client_for_tier(next_tier).bind_tools(bound_tools), messages)
