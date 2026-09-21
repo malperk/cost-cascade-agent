@@ -129,8 +129,7 @@ to /cycle-output:
    For success_rate/retry_count, the same principle applies: state what you actually expect,
    since the evaluator holds you to your own number wherever it's stricter than its floor.
 
-STEP 5 - Call FinalAnswer once hypothesis.json exists.
-5. Call FinalAnswer summarizing what you did (the hypothesis, and whether you committed a code
+STEP 5 - Call FinalAnswer summarizing what you did (the hypothesis, and whether you committed a code
    change or wrote a model proposal) once hypothesis.json exists. Do not claim your change was
    "accepted" or "successful" - you have no visibility into that; the trusted evaluator decides
    after you are done.

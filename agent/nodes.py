@@ -122,10 +122,25 @@ def run_subtask_node(state: TaskState) -> dict:
     return {"subtask_results": [result.get("final_output", "")]}
 
 
+def _extract_step_block(task: str, n: int) -> str | None:
+    """If the task text itself numbers its steps as 'STEP n ...', return that step's full
+    original block (all its details - file formats, exact commands) instead of relying on the
+    planner's one-line paraphrase, which drops exactly the details a weak model needs."""
+    import re
+
+    m = re.search(rf"^STEP {n}\b.*?(?=^STEP {n + 1}\b|^--- |\Z)", task, flags=re.S | re.M)
+    return m.group(0).strip() if m else None
+
+
 def run_sequential_node(state: TaskState) -> dict:
     import agent.graph as graph_module  # lazy import avoids circular import at module load time
 
     steps = state["subtasks"]
+    blocks: list[str] = []
+    while (b := _extract_step_block(state["task"], len(blocks) + 1)) is not None:
+        blocks.append(b)
+    if len(blocks) >= 2:
+        steps = blocks  # the task's own numbered steps are authoritative over the planner's paraphrase
     done: list[str] = []
     for i, step in enumerate(steps, 1):
         context = "\n\n".join(f"Step {j} result:\n{r}" for j, r in enumerate(done, 1)) or "(none - this is the first step)"
