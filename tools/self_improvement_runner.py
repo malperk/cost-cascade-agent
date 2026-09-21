@@ -61,6 +61,8 @@ PRODUCTION_COMBO_NAME_FOR_TIER = {"low": "alper-low", "mid": "alper-mid", "high"
 PRODUCTION_COMBOS = list(PRODUCTION_COMBO_NAME_FOR_TIER.values())
 IMAGE_TAG_PREFIX = "self-improve"
 AUTHORING_TIMEOUT_SECONDS = 20 * 60
+AUTHORING_MAX_ATTEMPTS = 3
+AUTHORING_TOTAL_SECONDS = 30 * 60  # no new attempt after this - keeps a cycle inside the hourly slot
 # Live testing showed "low" tier unreliable for this long, meta, instruction-heavy prompt:
 # one run truncated its hypothesis.json write, another disengaged from the task entirely
 # after triage rated it low-risk. See agent/config.py's AGENT_MIN_TIER for the mechanism.
@@ -82,7 +84,7 @@ AUTHORING_MAX_TIER = "high"
 # budget rather than unlimited. Raised again to 120 once authoring runs as a five-step sequential
 # pipeline: each step is its own full agent run (triage + tool loop + review), so the cost of
 # decomposition scales with step count.
-AUTHORING_MODEL_CALL_BUDGET = 120
+AUTHORING_MODEL_CALL_BUDGET = 120  # per attempt
 AUTHORING_SEARCH_CALL_BUDGET = 5
 
 HYPOTHESIS_SCHEMA = {
@@ -504,7 +506,7 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
     image = ensure_image(source_export, base_sha)
 
     budgets = {
-        "authoring": {"model_calls": AUTHORING_MODEL_CALL_BUDGET, "search_calls": AUTHORING_SEARCH_CALL_BUDGET},
+        "authoring": {"model_calls": AUTHORING_MODEL_CALL_BUDGET * AUTHORING_MAX_ATTEMPTS, "search_calls": AUTHORING_SEARCH_CALL_BUDGET},
         "baseline": {"model_calls": 200, "search_calls": 10},
         "candidate": {"model_calls": 200, "search_calls": 10},
     }
@@ -520,30 +522,56 @@ def _run_cycle_body(cycle_id, runtime_dir, clone_dir, cycle_output_dir, base_sha
     (runtime_dir / "baseline_fast.json").write_text(json.dumps(baseline_fast, indent=2))
     journal.set_phase("BASELINE_DONE")
 
-    si_git.shallow_clone(REPO_PATH, clone_dir)
     prompt = (REPO_PATH / "prompts" / "self_improvement_cycle.txt").read_text().format(
         history_context=_build_history_context(), reports_context=_build_reports_context()
     )
-    print("running authoring container...")
-    exit_code, log = run_authoring_container(image, clone_dir, cycle_output_dir, channels["authoring"], cycle_id, prompt)
-    (runtime_dir / "authoring.log").write_text(log)
-    print(f"authoring container exited {exit_code} (log: {runtime_dir}/authoring.log)")
+    authoring_started = time.monotonic()
+    hypothesis = None
+    for attempt in range(1, AUTHORING_MAX_ATTEMPTS + 1):
+        # each attempt starts from a pristine clone and empty output dir, so a failed attempt's
+        # half-finished edits or stale hypothesis.json can never leak into the next one.
+        shutil.rmtree(clone_dir, ignore_errors=True)
+        shutil.rmtree(cycle_output_dir, ignore_errors=True)
+        si_git.shallow_clone(REPO_PATH, clone_dir)
+        print(f"running authoring container (attempt {attempt}/{AUTHORING_MAX_ATTEMPTS})...")
+        exit_code, log = run_authoring_container(image, clone_dir, cycle_output_dir, channels["authoring"], cycle_id, prompt)
+        with open(runtime_dir / "authoring.log", "a") as f:
+            f.write(f"\n===== authoring attempt {attempt} (exit {exit_code}) =====\n{log}")
+        print(f"authoring container exited {exit_code} (log: {runtime_dir}/authoring.log)")
+
+        production_after = omniroute_admin.snapshot_all(list(production_before.keys()))
+        for name in production_before:
+            if not omniroute_admin.combos_equal(production_before[name], production_after[name]):
+                raise CycleFailed(f"INTEGRITY FAIL: production combo {name} changed during authoring")
+
+        # only "the agent failed to produce a usable proposal" is retried; integrity failures
+        # above and every later gate (whitelist, eval, duplicate, guard) are final.
+        failure: Exception | None = None
+        if not (cycle_output_dir / "hypothesis.json").exists():
+            failure = CycleFailed(
+                f"authoring produced no hypothesis.json (container exit {exit_code}); log tail: {log.strip()[-600:]}"
+            )
+        else:
+            try:
+                hypothesis = _read_hypothesis_json(cycle_output_dir, journal)
+                journal.update(hypothesis=hypothesis, category=hypothesis["category"], metric=hypothesis["metric"])
+                if hypothesis["category"] == "code":
+                    si_git.verify_code_invariants(clone_dir, base_sha)
+            except (json.JSONDecodeError, jsonschema.ValidationError, si_git.InvariantViolation) as exc:
+                failure = exc
+        if failure is None:
+            break
+        hypothesis = None
+        print(f"authoring attempt {attempt} unusable: {type(failure).__name__}: {str(failure)[:200]}")
+        out_of_time = time.monotonic() - authoring_started > AUTHORING_TOTAL_SECONDS
+        if attempt == AUTHORING_MAX_ATTEMPTS or out_of_time:
+            raise failure
+
     journal.set_phase("CANDIDATE_RECEIVED")
-
-    production_after = omniroute_admin.snapshot_all(list(production_before.keys()))
-    for name in production_before:
-        if not omniroute_admin.combos_equal(production_before[name], production_after[name]):
-            raise CycleFailed(f"INTEGRITY FAIL: production combo {name} changed during authoring")
-
-    if not (cycle_output_dir / "hypothesis.json").exists():
-        tail = log.strip()[-600:]
-        raise CycleFailed(f"authoring produced no hypothesis.json (container exit {exit_code}); log tail: {tail}")
-    hypothesis = _read_hypothesis_json(cycle_output_dir, journal)
     journal.update(hypothesis=hypothesis, category=hypothesis["category"], metric=hypothesis["metric"])
     print(f"hypothesis: {hypothesis}")
 
     if hypothesis["category"] == "code":
-        si_git.verify_code_invariants(clone_dir, base_sha)
         branch_name = f"self-improve/{cycle_id}"
         candidate_sha = si_git.fetch_candidate_branch(REPO_PATH, clone_dir, branch_name)
         si_git.check_whitelist_and_budget(REPO_PATH, base_sha, candidate_sha)

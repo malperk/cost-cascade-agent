@@ -11,6 +11,7 @@ from agent.tools import ALL_TOOLS
 
 TIER_ORDER = ["low", "mid", "high", "local"]
 SEQUENTIAL_MIN_STEPS = 3
+STEP_MAX_RUNS = 2
 
 
 def _missing_required_output(state: TaskState) -> str | None:
@@ -135,7 +136,13 @@ def run_sequential_node(state: TaskState) -> dict:
             f"Results of earlier steps (their files/changes are already in place):\n{context}\n\n"
             f"Reference only - the larger job this step belongs to (do NOT act on it beyond your step):\n{state['task']}"
         )
-        result = graph_module.app.invoke({"task": step_task, "depth": 1}).get("final_output", "")
+        result = ""
+        for _ in range(STEP_MAX_RUNS):
+            result = graph_module.app.invoke({"task": step_task, "depth": 1}).get("final_output", "")
+            # weak models sometimes emit a raw tool-call JSON blob as their "answer" instead of
+            # actually calling the tool - that is not a completed step, rerun it.
+            if not result.lstrip().startswith(('{"name"', '{ "name"')):
+                break
         if result.startswith("TASK FAILED"):
             return {
                 "review_passed": False,
