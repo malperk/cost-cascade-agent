@@ -1,10 +1,13 @@
 import sys
 
 from agent.graph import app
+from agent.model_catalog import tier_warnings
 
 
 def run(task: str) -> bool:
     """Returns True if the task was accepted, False if it was rejected (failed review at every tier)."""
+    for warning in tier_warnings():
+        print(f"[model catalog] {warning}", file=sys.stderr)
     result = app.invoke({"task": task, "depth": 0})
     rejected = result.get("review_passed") is False and "TASK FAILED" in result.get("final_output", "")
     print("\n--- Trace ---")
