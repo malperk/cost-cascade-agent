@@ -76,8 +76,10 @@ AUTHORING_MAX_TIER = "high"
 # exhausted the old budget of 15 mid-task (the broker's own 429 forced agent.main to give up
 # and return rejected without ever writing hypothesis.json) - raised to give real headroom for
 # at least one full escalation chain plus some retry slack, while still being a real, bounded
-# budget rather than unlimited.
-AUTHORING_MODEL_CALL_BUDGET = 40
+# budget rather than unlimited. Raised again to 120 once authoring runs as a five-step sequential
+# pipeline: each step is its own full agent run (triage + tool loop + review), so the cost of
+# decomposition scales with step count.
+AUTHORING_MODEL_CALL_BUDGET = 120
 AUTHORING_SEARCH_CALL_BUDGET = 5
 
 HYPOTHESIS_SCHEMA = {
