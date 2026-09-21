@@ -97,7 +97,9 @@ def planner_node(state: TaskState) -> dict:
             "Break this task into 2-6 ORDERED steps that together fully accomplish it. The steps run "
             "one after another in the same workspace: each step can rely on files and results left by "
             "earlier steps, so do not repeat earlier work. Each step must state precisely what to do "
-            "(exact file names and exact content from the task, in the task's own wording), not just a topic. "
+            "(exact file names, paths, commands and content from the task, in the task's own wording), not just a "
+            "topic. Every step must produce a concrete, checkable result (a file written or edited, a command run) - "
+            "never a step that only 'decides', 'picks' or 'plans': fold any decision into the step that acts on it. "
             "Do not invent shell commands or tools the task did not mention."
         )
     else:
@@ -126,9 +128,11 @@ def run_sequential_node(state: TaskState) -> dict:
     for i, step in enumerate(steps, 1):
         context = "\n\n".join(f"Step {j} result:\n{r}" for j, r in enumerate(done, 1)) or "(none - this is the first step)"
         step_task = (
-            f"Overall task (for context only):\n{state['task']}\n\n"
-            f"Results of the steps already completed (their files are already in the workspace):\n{context}\n\n"
-            f"You are step {i} of {len(steps)}. Do ONLY this step, fully and literally:\n{step}"
+            f"Do ONLY this one step, fully and literally, then stop. Do not perform any other step "
+            f"of the larger job, even if you can see what comes next - later steps run separately.\n\n"
+            f"YOUR STEP ({i} of {len(steps)}):\n{step}\n\n"
+            f"Results of earlier steps (their files/changes are already in place):\n{context}\n\n"
+            f"Reference only - the larger job this step belongs to (do NOT act on it beyond your step):\n{state['task']}"
         )
         result = graph_module.app.invoke({"task": step_task, "depth": 1}).get("final_output", "")
         if result.startswith("TASK FAILED"):
