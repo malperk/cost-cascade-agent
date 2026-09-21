@@ -11,6 +11,7 @@ promotes, or deletes a combo.
 """
 
 import os
+import uuid
 
 import httpx
 
@@ -82,18 +83,23 @@ def smoke_test_combo(name: str, timeout: float = 30.0) -> tuple[bool, str]:
     ollama-local/llama3, a model that turned out not to actually be pulled locally) passed
     every eval case at the time but was 404-broken minutes later; the paired-benchmark eval
     happening to have worked is not the same guarantee as the promoted combo actually being
-    live right now. Returns (ok, detail)."""
+    live right now. The prompt carries a nonce because OmniRoute caches identical prompts: a
+    fixed "reply with OK" can come back 200 from the cache (x-omniroute-cache: HIT) for a combo
+    whose models are all dead. Returns (ok, detail)."""
     with _client() as c:
         try:
             resp = c.post(
                 "/v1/chat/completions",
-                json={"model": name, "messages": [{"role": "user", "content": "reply with OK"}]},
+                json={"model": name, "messages": [
+                    {"role": "user", "content": f"[ref {uuid.uuid4().hex[:12]}] reply with OK"}]},
                 timeout=timeout,
             )
         except httpx.HTTPError as exc:
             return False, f"{type(exc).__name__}: {exc}"
     if resp.status_code != 200:
         return False, f"HTTP {resp.status_code}: {resp.text[:300]}"
+    if resp.headers.get("x-omniroute-cache") == "HIT" or resp.headers.get("x-omniroute-cache-hit") == "true":
+        return False, "answered from OmniRoute cache - combo not actually exercised"
     return True, "ok"
 
 
