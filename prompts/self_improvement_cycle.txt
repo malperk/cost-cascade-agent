@@ -33,8 +33,14 @@ and to run git:
 
 --- Your task ---
 
-1. Pick exactly ONE hypothesis type: "code" or "model".
+This job has exactly THREE steps, to be done strictly in this order. Each step ends with a
+concrete result you can point to; do not skip ahead and do not merge steps.
 
+STEP 1 - Choose ONE hypothesis and carry out its work (an edit + commit for "code", or
+an investigation with no edits for "model"). Report in your answer exactly which type and
+metric you chose and what you expect to improve.
+
+  Which type to choose ("code" or "model"):
    These two types improve genuinely different things, and it matters which one you reach for:
    - "model" can ONLY ever make one tier faster or cheaper by swapping which model serves it.
      It cannot change how well the system decides, splits, reviews, or recovers from a bad
@@ -53,7 +59,7 @@ and to run git:
      the four functions named above - the loop should be exploring both kinds of improvement,
      not defaulting to the same lever every time because it is the path of least resistance.
 
-2. If "code":
+  If you chose "code", do this now:
    - You may edit ONLY files under /app/agent/ ending in .py, and at most 2 files, at most ~80
      changed lines total. Any other file, or a larger change, will be automatically rejected
      before it is even evaluated - so keep the change small and focused on one idea.
@@ -62,11 +68,8 @@ and to run git:
    - When done, still via code_execution, commit your change inside /app (fill in a real
      one-line description of your hypothesis):
        git -C /app add -A && git -C /app commit -m "candidate: <your hypothesis in one line>"
-   - Then write your hypothesis metadata with your normal file_write tool - it writes directly
-     to /cycle-output, which is exactly where this needs to go:
-     file_write("hypothesis.json", '{{"category": "code", "metric": "<latency|cost|success_rate|retry_count>", "threshold": <number>, "guard": {{"metric": "success_rate", "max_regression": 0.0}}}}')
 
-3. If "model":
+  If you chose "model", do this now:
    - Do NOT edit any files and do NOT commit anything - your only output is a proposal.
    - Investigate candidate models/providers if useful (you have model-inference and web-search
      access through the usual tools; you do not have any ability to create, delete, or modify
@@ -79,12 +82,22 @@ and to run git:
      Pick a real model id that provider actually serves - if unsure, prefer reusing a
      provider+model pairing mentioned in the cycle history/reports above over guessing a new
      one from general knowledge.
+
+STEP 2 - Write /cycle-output/hypothesis.json for the hypothesis you carried out in step 1.
+It must match what step 1 actually did. Use your normal file_write tool - it writes directly
+to /cycle-output:
+  For "code":
+   - Then write your hypothesis metadata with your normal file_write tool - it writes directly
+     to /cycle-output, which is exactly where this needs to go:
+     file_write("hypothesis.json", '{{"category": "code", "metric": "<latency|cost|success_rate|retry_count>", "threshold": <number>, "guard": {{"metric": "success_rate", "max_regression": 0.0}}}}')
+  For "model":
    - Write your proposal to hypothesis.json (this is your AGENT_WORKSPACE_DIR for this task,
      so file_write("hypothesis.json", ...) writes it to the right place directly):
        {{"category": "model", "tier": "<low|mid|high|local>", "candidate_model": "<model id>",
          "candidate_provider": "<provider id>", "metric": "<latency|cost|success_rate|retry_count>",
          "threshold": <number>, "guard": {{"metric": "success_rate", "max_regression": 0.0}}}}
 
+  Threshold guidance (applies to the "threshold" field in either case):
 4. For latency/cost, propose a REALISTIC threshold - your best honest estimate of the
    improvement you actually expect, not an easy lowball and not an aggressive guess to sound
    impressive. This matters because of how your threshold is used:
@@ -103,6 +116,7 @@ and to run git:
    For success_rate/retry_count, the same principle applies: state what you actually expect,
    since the evaluator holds you to your own number wherever it's stricter than its floor.
 
+STEP 3 - Call FinalAnswer once hypothesis.json exists.
 5. Call FinalAnswer summarizing what you did (the hypothesis, and whether you committed a code
    change or wrote a model proposal) once hypothesis.json exists. Do not claim your change was
    "accepted" or "successful" - you have no visibility into that; the trusted evaluator decides
@@ -111,5 +125,5 @@ and to run git:
 --- Begin now ---
 
 Do not wait for a follow-up message and do not say something like "no task has been provided
-yet" - the five steps above ARE the task. Start with step 1: pick a hypothesis type, right now,
-using the history/reports context already given, and proceed through to calling FinalAnswer.
+yet" - the three steps above ARE the task. Start with step 1 right now, using the
+history/reports context already given.
