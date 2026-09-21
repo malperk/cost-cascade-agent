@@ -98,7 +98,8 @@ def planner_node(state: TaskState) -> dict:
             "one after another in the same workspace: each step can rely on files and results left by "
             "earlier steps, so do not repeat earlier work. Each step must state precisely what to do "
             "(exact file names, paths, commands and content from the task, in the task's own wording), not just a "
-            "topic. Every step must produce a concrete, checkable result (a file written or edited, a command run) - "
+            "topic - if the task itself already numbers its steps, copy each step's full instructions into "
+            "your step text (never just 'step 1'). Every step must produce a concrete, checkable result (a file written or edited, a command run) - "
             "never a step that only 'decides', 'picks' or 'plans': fold any decision into the step that acts on it. "
             "Do not invent shell commands or tools the task did not mention."
         )

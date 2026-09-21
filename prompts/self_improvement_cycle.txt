@@ -33,12 +33,16 @@ and to run git:
 
 --- Your task ---
 
-This job has exactly THREE steps, to be done strictly in this order. Each step ends with a
-concrete result you can point to; do not skip ahead and do not merge steps.
+This job has exactly FIVE steps, to be done strictly in this order. Each step ends with a
+concrete result you can point to; do not skip ahead and do not merge steps. Steps 2 and 3
+only apply to a "code" hypothesis - if step 1 chose "model", say so and finish steps 2 and 3
+immediately with "not applicable: model hypothesis" and no tool calls.
 
-STEP 1 - Choose ONE hypothesis and carry out its work (an edit + commit for "code", or
-an investigation with no edits for "model"). Report in your answer exactly which type and
-metric you chose and what you expect to improve.
+STEP 1 - Choose ONE hypothesis and prepare it. For "code": use code_execution to actually
+open and print the function you intend to change (from /app/agent/nodes.py), then state in
+your answer the exact file, the exact old text, and the exact new text of your planned
+small edit. For "model": investigate and state the exact tier, provider and model id you
+will propose. Either way, state the type, the metric, and what you expect to improve.
 
   Which type to choose ("code" or "model"):
    These two types improve genuinely different things, and it matters which one you reach for:
@@ -59,7 +63,7 @@ metric you chose and what you expect to improve.
      the four functions named above - the loop should be exploring both kinds of improvement,
      not defaulting to the same lever every time because it is the path of least resistance.
 
-  If you chose "code", do this now:
+  Rules for a "code" hypothesis (used by steps 1-3):
    - You may edit ONLY files under /app/agent/ ending in .py, and at most 2 files, at most ~80
      changed lines total. Any other file, or a larger change, will be automatically rejected
      before it is even evaluated - so keep the change small and focused on one idea.
@@ -69,7 +73,7 @@ metric you chose and what you expect to improve.
      one-line description of your hypothesis):
        git -C /app add -A && git -C /app commit -m "candidate: <your hypothesis in one line>"
 
-  If you chose "model", do this now:
+  Rules for a "model" hypothesis (used by step 1):
    - Do NOT edit any files and do NOT commit anything - your only output is a proposal.
    - Investigate candidate models/providers if useful (you have model-inference and web-search
      access through the usual tools; you do not have any ability to create, delete, or modify
@@ -83,7 +87,16 @@ metric you chose and what you expect to improve.
      provider+model pairing mentioned in the cycle history/reports above over guessing a new
      one from general knowledge.
 
-STEP 2 - Write /cycle-output/hypothesis.json for the hypothesis you carried out in step 1.
+STEP 2 (code only) - Apply the planned edit: with code_execution, write the change into the
+file under /app/agent/, then run `git -C /app diff --stat` and confirm the diff is non-empty.
+If the diff is empty, the edit did not happen - redo it before finishing this step. Do not
+commit yet.
+
+STEP 3 (code only) - Commit exactly that change with code_execution:
+`git -C /app add -A && git -C /app commit -m "candidate: <hypothesis in one line>"`, then run
+`git -C /app log --oneline -1` and confirm the new commit is there.
+
+STEP 4 - Write /cycle-output/hypothesis.json for the hypothesis you carried out in step 1.
 It must match what step 1 actually did. Use your normal file_write tool - it writes directly
 to /cycle-output:
   For "code":
@@ -116,7 +129,7 @@ to /cycle-output:
    For success_rate/retry_count, the same principle applies: state what you actually expect,
    since the evaluator holds you to your own number wherever it's stricter than its floor.
 
-STEP 3 - Call FinalAnswer once hypothesis.json exists.
+STEP 5 - Call FinalAnswer once hypothesis.json exists.
 5. Call FinalAnswer summarizing what you did (the hypothesis, and whether you committed a code
    change or wrote a model proposal) once hypothesis.json exists. Do not claim your change was
    "accepted" or "successful" - you have no visibility into that; the trusted evaluator decides
@@ -125,5 +138,5 @@ STEP 3 - Call FinalAnswer once hypothesis.json exists.
 --- Begin now ---
 
 Do not wait for a follow-up message and do not say something like "no task has been provided
-yet" - the three steps above ARE the task. Start with step 1 right now, using the
+yet" - the five steps above ARE the task. Start with step 1 right now, using the
 history/reports context already given.
