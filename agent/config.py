@@ -40,3 +40,7 @@ AGENT_MAX_TIER = os.getenv("AGENT_MAX_TIER", "local")
 # anything outside of it (see agent/tools.py:_resolve_safe_path).
 WORKSPACE_DIR = Path(os.getenv("AGENT_WORKSPACE_DIR", "./workspace")).resolve()
 WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Optional deterministic completion check: if set, a top-level task is not accepted until this
+# file exists in the workspace, regardless of what the model or reviewer says.
+AGENT_REQUIRED_OUTPUT = os.getenv("AGENT_REQUIRED_OUTPUT", "")

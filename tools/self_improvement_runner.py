@@ -275,6 +275,7 @@ def run_authoring_container(
         "-e", "AGENT_WORKSPACE_DIR=/cycle-output",
         "-e", f"AGENT_MIN_TIER={AUTHORING_MIN_TIER}",
         "-e", f"AGENT_MAX_TIER={AUTHORING_MAX_TIER}",
+        "-e", "AGENT_REQUIRED_OUTPUT=hypothesis.json",
         "-w", "/app",
         image, "python3", "-m", "agent.main", prompt,
     ]

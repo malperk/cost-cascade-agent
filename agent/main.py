@@ -9,6 +9,8 @@ def run(task: str) -> bool:
     rejected = result.get("review_passed") is False and "TASK FAILED" in result.get("final_output", "")
     print("\n--- Trace ---")
     print(f"split_needed:  {result.get('split_needed')}")
+    print(f"split_mode:    {result.get('split_mode')} (steps={result.get('distinct_steps')}, dependent={result.get('steps_are_dependent')})")
+    print(f"triage:        {result.get('triage_reasoning')}")
     print(f"risk_level:    {result.get('risk_level')}")
     print(f"review_needed: {result.get('review_needed')}")
     print(f"tier (final):  {result.get('tier')}")

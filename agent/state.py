@@ -14,6 +14,8 @@ class TaskState(TypedDict, total=False):
     risk_level: Literal["low", "medium", "high"]
     review_needed: bool
     triage_reasoning: str
+    distinct_steps: int
+    steps_are_dependent: bool
 
     # split
     subtasks: list[str]

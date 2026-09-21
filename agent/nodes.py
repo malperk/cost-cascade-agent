@@ -4,13 +4,21 @@ from typing import Literal
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
-from agent.config import AGENT_MAX_TIER, AGENT_MIN_TIER, MAX_ATTEMPTS
+from agent.config import AGENT_MAX_TIER, AGENT_MIN_TIER, AGENT_REQUIRED_OUTPUT, MAX_ATTEMPTS, WORKSPACE_DIR
 from agent.llm import INFRA_ERRORS, NEXT_TIER, client_for_tier, invoke_with_retry
 from agent.state import TaskState
 from agent.tools import ALL_TOOLS
 
 TIER_ORDER = ["low", "mid", "high", "local"]
 SEQUENTIAL_MIN_STEPS = 3
+
+
+def _missing_required_output(state: TaskState) -> str | None:
+    if state.get("depth", 0) != 0 or not AGENT_REQUIRED_OUTPUT:
+        return None
+    if (WORKSPACE_DIR / AGENT_REQUIRED_OUTPUT).is_file():
+        return None
+    return f"required output file '{AGENT_REQUIRED_OUTPUT}' does not exist in the workspace - the task is not complete until it is written with file_write"
 
 
 def _capped_next_tier(current_tier: str) -> str:
@@ -72,6 +80,8 @@ def triage_node(state: TaskState) -> dict:
     return {
         "split_needed": split_needed,
         "split_mode": "sequential" if sequential else "parallel",
+        "distinct_steps": decision.distinct_steps,
+        "steps_are_dependent": decision.steps_are_dependent,
         "risk_level": decision.risk_level,
         "review_needed": decision.review_needed,
         "triage_reasoning": decision.reasoning,
@@ -127,6 +137,9 @@ def run_sequential_node(state: TaskState) -> dict:
                 "final_output": f"TASK FAILED: step {i} of {len(steps)} ('{step}') could not be completed.\n\n{result}",
             }
         done.append(result)
+    missing = _missing_required_output(state)
+    if missing:
+        return {"review_passed": False, "final_output": f"TASK FAILED: all steps ran but {missing}."}
     return {"final_output": "\n\n".join(f"### {step}\n{r}" for step, r in zip(steps, done))}
 
 
@@ -246,6 +259,9 @@ def _summarize_tool_activity(state: TaskState) -> str:
 
 
 def review_node(state: TaskState) -> dict:
+    missing = _missing_required_output(state)
+    if missing:
+        return {"review_passed": False, "review_feedback": missing}
     llm = client_for_tier("high").with_structured_output(ReviewResult, method="json_schema")
     try:
         result: ReviewResult = invoke_with_retry(
@@ -331,7 +347,7 @@ def route_after_agent(state: TaskState) -> Literal["tools", "review", "accept"]:
     # are real actions (ALL_TOOLS) - a FinalAnswer turn always ends with an ack ToolMessage.
     if isinstance(last, AIMessage) and last.tool_calls:
         return "tools"
-    return "review" if state.get("review_needed") else "accept"
+    return "review" if state.get("review_needed") or _missing_required_output(state) else "accept"
 
 
 def route_after_review(state: TaskState) -> Literal["accept", "escalate", "reject"]:
