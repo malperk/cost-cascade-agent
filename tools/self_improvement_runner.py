@@ -67,6 +67,7 @@ AUTHORING_TIMEOUT_SECONDS = 20 * 60
 # Raised to "high" after the five-step sequential pipeline still failed at "mid" (steps reported
 # success without doing the work, or wrote nonsense hypothesis.json). Authoring runs once per cycle.
 AUTHORING_MIN_TIER = "high"
+SUCCESS_RATE_AUTO_ACCEPT = 0.40
 # "local" (Ollama llama3.1:8b) is too weak for this task's multi-step tool calling - a live
 # cycle escalated there on a review failure and emitted a tool call as plain-text JSON instead
 # of an actual invocation. Capping at "high" means a failed review repeats at "high" instead
@@ -360,7 +361,10 @@ def effective_bar(hypothesis: dict) -> float | None:
         return bar
     if metric == "success_rate":
         floor = policy["min_absolute_improvement"]
-        return max(proposed, floor) if proposed is not None else floor
+        bar = max(proposed, floor) if proposed is not None else floor
+        # same principle as the paired metrics' auto_accept: an agent overpromising (e.g. 0.95)
+        # must not set an unreachable bar for itself.
+        return min(bar, SUCCESS_RATE_AUTO_ACCEPT)
     return None
 
 
@@ -388,7 +392,7 @@ def check_guard(hypothesis: dict, baseline_cases: list[dict], candidate_cases: l
 def evaluate_metric(metric: str, baseline_suite: dict, candidate_suite: dict, mode: str, bar: float | None) -> tuple[bool, float | None]:
     if metric == "success_rate":
         if mode == "fast":
-            ok = eval_agent.resolution_matched_fast_gate(baseline_suite["cases"], candidate_suite["cases"])
+            ok = eval_agent.no_regression_fast_gate(baseline_suite["cases"], candidate_suite["cases"])
             return ok, None
         ok = eval_agent.full_success_rate_gate(baseline_suite, candidate_suite, bar)
         return ok, None

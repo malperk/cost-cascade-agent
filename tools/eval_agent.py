@@ -241,17 +241,12 @@ def retry_count_decision(baseline_counts: list[int], candidate_counts: list[int]
     return median_delta_ok and strict_sum_ok
 
 
-def resolution_matched_fast_gate(baseline_results: list[dict], candidate_results: list[dict]) -> bool:
-    """success_rate fast-suite gate: candidate passes >=1 case the baseline failed, and fails
-    0 cases the baseline passed - meaningful at 5-case resolution where a percentage-point
-    threshold isn't."""
-    gained = lost = 0
-    for b, c in zip(baseline_results, candidate_results):
-        if not b["passed"] and c["passed"]:
-            gained += 1
-        if b["passed"] and not c["passed"]:
-            lost += 1
-    return gained >= 1 and lost == 0
+def no_regression_fast_gate(baseline_results: list[dict], candidate_results: list[dict]) -> bool:
+    """Fast-suite sanity gate for success_rate: candidate loses no case the baseline passed.
+    Deliberately does NOT demand a gain: the fast suite is easy enough that the baseline
+    usually passes every case, so requiring a gain there makes success_rate unreachable -
+    the actual improvement is measured on the full suite (full_success_rate_gate)."""
+    return all(c["passed"] for b, c in zip(baseline_results, candidate_results) if b["passed"])
 
 
 def full_success_rate_gate(baseline_suite: dict, candidate_suite: dict, min_absolute_improvement: float) -> bool:
@@ -281,7 +276,7 @@ def _cmd_compare(args):
 
     if args.metric == "success_rate":
         if args.mode == "fast":
-            ok = resolution_matched_fast_gate(baseline["cases"], candidate["cases"])
+            ok = no_regression_fast_gate(baseline["cases"], candidate["cases"])
         else:
             ok = full_success_rate_gate(baseline, candidate, args.min_score)
     elif args.metric in ("latency", "cost"):
