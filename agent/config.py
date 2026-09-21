@@ -44,3 +44,9 @@ WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
 # Optional deterministic completion check: if set, a top-level task is not accepted until this
 # file exists in the workspace, regardless of what the model or reviewer says.
 AGENT_REQUIRED_OUTPUT = os.getenv("AGENT_REQUIRED_OUTPUT", "")
+
+# Written by the deterministic model-maintenance service (~/Codes/Alper/Omniroute). Read-only
+# here: used to warn at startup when a tier's combo is short on working models.
+MODEL_CATALOG_PATH = Path(
+    os.getenv("MODEL_CATALOG_PATH", str(Path(__file__).resolve().parents[2] / "Omniroute" / "state" / "model_catalog.json"))
+)
