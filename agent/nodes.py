@@ -42,7 +42,7 @@ class ReviewResult(BaseModel):
     feedback: str = Field(description="If failed, a specific description of what is wrong")
 
 
-def triage_node(state: TaskState) -> dict:
+def triage_node_new(state: TaskState) -> dict:
     depth = state.get("depth", 0)
     # AGENT_MIN_TIER defaults to "low" for normal runs; the self-improvement runner raises it
     # (see agent/config.py) for its authoring container, where a long, meta, instruction-heavy
