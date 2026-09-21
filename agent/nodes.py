@@ -10,7 +10,7 @@ from agent.state import TaskState
 from agent.tools import ALL_TOOLS
 
 TIER_ORDER = ["low", "mid", "high", "local"]
-SEQUENTIAL_MIN_STEPS = 3
+SEQUENTIAL_MIN_STEPS = 4
 
 
 def _missing_required_output(state: TaskState) -> str | None:
