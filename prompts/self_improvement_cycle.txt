@@ -87,14 +87,22 @@ will propose. Either way, state the type, the metric, and what you expect to imp
      provider+model pairing mentioned in the cycle history/reports above over guessing a new
      one from general knowledge.
 
-STEP 2 (code only) - Apply the planned edit: with code_execution, write the change into the
-file under /app/agent/, then run `git -C /app diff --stat` and confirm the diff is non-empty.
-If the diff is empty, the edit did not happen - redo it before finishing this step. Do not
-commit yet.
+STEP 2 (code only) - Apply the planned edit with code_execution using EXACTLY this safe
+replace pattern (never write a file's new content from scratch - that overwrites the whole
+file and destroys it):
+    p = "/app/agent/nodes.py"        # the file you chose
+    s = open(p).read()
+    old = "<the exact old text from step 1>"
+    new = "<the exact new text from step 1>"
+    assert old in s, "old text not found"
+    open(p, "w").write(s.replace(old, new, 1))
+Then run `git -C /app diff --stat`. The diff must be NON-empty and SMALL (a handful of changed
+lines). If it shows tens or hundreds of deleted lines you overwrote the file: restore it with
+`git -C /app checkout -- agent/` and redo the edit with the pattern above. Do not commit yet.
 
 STEP 3 (code only) - Commit exactly that change with code_execution:
-`git -C /app add -A && git -C /app commit -m "candidate: <hypothesis in one line>"`, then run
-`git -C /app log --oneline -1` and confirm the new commit is there.
+`git -C /app add -A && git -C /app commit -m "candidate: <one line describing the real edit you made>"`,
+then run `git -C /app log --oneline -1` and confirm the new commit is there.
 
 STEP 4 - Write /cycle-output/hypothesis.json for the hypothesis you carried out in step 1.
 It must match what step 1 actually did. Use your normal file_write tool - it writes directly
