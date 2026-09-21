@@ -180,8 +180,9 @@ class FinalAnswer(BaseModel):
 
     actions_taken: list[str] = Field(
         default_factory=list,
-        description="Concrete actions actually performed via tools during this task, e.g. "
-        "'wrote file X.py', 'created folder Y'. Empty list if no tools were used.",
+        description="Concrete actions you actually performed via tools during this task, each naming "
+        "the real file/command involved. Empty list if you called no tools - never invent or "
+        "generalize an action you did not perform.",
     )
     summary: str = Field(description="A concise, factual final answer for the user - only what was actually done or found.")
 
