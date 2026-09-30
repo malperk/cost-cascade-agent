@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from pydantic import BaseModel, Field
 
 from agent.config import AGENT_MAX_TIER, AGENT_MIN_TIER, AGENT_REQUIRED_OUTPUT, MAX_ATTEMPTS, WORKSPACE_DIR
+from agent.jev_triage import jev_triage
 from agent.llm import INFRA_ERRORS, NEXT_TIER, client_for_tier, invoke_with_retry
 from agent.state import TaskState
 from agent.tools import ALL_TOOLS
@@ -58,22 +59,11 @@ def triage_node(state: TaskState) -> dict:
     # prompt proved unreliable at "low" - both the triage classification itself and the
     # resulting starting execution tier are raised together, since a confused triage call was
     # part of the observed failure (it rated the task low-risk/no-review-needed).
-    llm = client_for_tier(AGENT_MIN_TIER).with_structured_output(TriageDecision, method="json_schema")
-    decision: TriageDecision = invoke_with_retry(
-        llm,
-        "Assess this task and decide the minimum necessary execution path.\n"
-        "Only ask for splitting if the task is genuinely complex (multiple distinct deliverables).\n"
-        "Count distinct_steps as tool actions/deliverables, not reasoning stages, and say whether later steps depend on earlier ones "
-        "(steps_are_dependent) - these two facts matter more than your overall impression of "
-        "the task's difficulty.\n"
-        "Only ask for review if a cheap/fast model plausibly could get it wrong (ambiguity, "
-        "precision-sensitive output, multi-step reasoning, factual risk).\n"
-        "Also mark review_needed=True whenever the task requires taking an action through a tool "
-        "(creating/editing files, running code, searching the web, calling an API): cheap models "
-        "are prone to executing the action correctly but then summarizing it wrong, so the final "
-        "answer needs to be checked against what was actually done.\n\n"
-        f"Task: {state['task']}",
-    )
+    jev_fields = jev_triage(state["task"])
+    if jev_fields is not None:
+        decision = TriageDecision(**jev_fields)
+    else:
+        decision = _llm_triage(state["task"])
     # A dependent chain of 3+ steps runs as an ordered pipeline (each step sees earlier results);
     # independent deliverables keep the original parallel split. Never split subtasks further.
     sequential = depth == 0 and decision.steps_are_dependent and decision.distinct_steps >= SEQUENTIAL_MIN_STEPS
@@ -89,6 +79,25 @@ def triage_node(state: TaskState) -> dict:
         "tier": AGENT_MIN_TIER,
         "attempt_count": 0,
     }
+
+
+def _llm_triage(task: str) -> TriageDecision:
+    llm = client_for_tier(AGENT_MIN_TIER).with_structured_output(TriageDecision, method="json_schema")
+    return invoke_with_retry(
+        llm,
+        "Assess this task and decide the minimum necessary execution path.\n"
+        "Only ask for splitting if the task is genuinely complex (multiple distinct deliverables).\n"
+        "Count distinct_steps as tool actions/deliverables, not reasoning stages, and say whether later steps depend on earlier ones "
+        "(steps_are_dependent) - these two facts matter more than your overall impression of "
+        "the task's difficulty.\n"
+        "Only ask for review if a cheap/fast model plausibly could get it wrong (ambiguity, "
+        "precision-sensitive output, multi-step reasoning, factual risk).\n"
+        "Also mark review_needed=True whenever the task requires taking an action through a tool "
+        "(creating/editing files, running code, searching the web, calling an API): cheap models "
+        "are prone to executing the action correctly but then summarizing it wrong, so the final "
+        "answer needs to be checked against what was actually done.\n\n"
+        f"Task: {task}",
+    )
 
 
 def planner_node(state: TaskState) -> dict:

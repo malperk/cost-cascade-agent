@@ -36,6 +36,20 @@ AGENT_MIN_TIER = os.getenv("AGENT_MIN_TIER", "low")
 # instead of dropping to a weaker tier that's less likely to help.
 AGENT_MAX_TIER = os.getenv("AGENT_MAX_TIER", "local")
 
+# Triage backend. "auto" (default) asks TypeSafe's Jev (a hosted decision model, see
+# agent/jev_triage.py) whenever TYPESAFE_API_KEY is set, and uses the OmniRoute LLM triage
+# otherwise; "llm" never calls Jev. Jev is only consulted for short tasks at the default
+# "low" start tier - long or meta prompts (and the self-improvement runner, which raises
+# AGENT_MIN_TIER) keep the LLM triage and are never sent to a third party. Any API error or
+# an answer below JEV_CONFIDENCE also falls back to the LLM triage.
+TYPESAFE_API_KEY = os.getenv("TYPESAFE_API_KEY", "")
+TRIAGE_BACKEND = os.getenv("TRIAGE_BACKEND", "auto")
+JEV_BASE_URL = os.getenv("JEV_BASE_URL", "https://api.typesafe.ai")
+JEV_MODEL = os.getenv("JEV_MODEL", "jev-latest")
+JEV_CONFIDENCE = float(os.getenv("JEV_CONFIDENCE", "0.7"))
+JEV_TIMEOUT = float(os.getenv("JEV_TIMEOUT", "10"))
+JEV_MAX_TASK_CHARS = int(os.getenv("JEV_MAX_TASK_CHARS", "1500"))
+
 # File/code tools are sandboxed to this directory - agents cannot read or write
 # anything outside of it (see agent/tools.py:_resolve_safe_path).
 WORKSPACE_DIR = Path(os.getenv("AGENT_WORKSPACE_DIR", "./workspace")).resolve()
