@@ -24,8 +24,15 @@ def test_low_confidence_noul_falls_back():
     assert jt.decision_from_answers(_answers(review=0.55)) is None
 
 
-def test_low_confidence_choice_falls_back():
-    assert jt.decision_from_answers(_answers(risk_probs={"low": 0.4, "medium": 0.35, "high": 0.25})) is None
+def test_unsure_risk_level_does_not_fall_back():
+    d = jt.decision_from_answers(_answers(risk="high", risk_probs={"high": 0.38, "low": 0.32, "medium": 0.3}))
+    assert d is not None and d["risk_level"] == "high"
+
+
+def test_low_confidence_steps_falls_back():
+    a = _answers()
+    a["distinct_steps"]["probabilities"] = {"one": 0.4, "two": 0.35, "three_or_more": 0.25}
+    assert jt.decision_from_answers(a) is None
 
 
 def test_unknown_label_falls_back():

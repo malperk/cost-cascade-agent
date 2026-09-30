@@ -122,8 +122,10 @@ def decision_from_answers(answers: dict, min_confidence: float = JEV_CONFIDENCE)
         if max(p_yes, 1.0 - p_yes) < min_confidence:
             return None
         flags[name] = p_yes >= 0.5
+    # risk_level is informational only (routing uses review_needed and distinct_steps), and Jev
+    # is routinely unsure about it on real tool tasks, so it is not gated on confidence.
     risk, steps = answers["risk_level"], answers["distinct_steps"]
-    if min(_choice_confidence(risk), _choice_confidence(steps)) < min_confidence:
+    if _choice_confidence(steps) < min_confidence:
         return None
     if risk["choice"] not in ("low", "medium", "high") or steps["choice"] not in _STEPS:
         return None
