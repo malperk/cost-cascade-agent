@@ -75,3 +75,19 @@ MODEL_CATALOG_PATH = Path(
 BROWSER_ENABLED = os.getenv("BROWSER_ENABLED", "true").lower() != "false"
 BROWSER_DECISIONS = os.getenv("BROWSER_DECISIONS", "llm")
 BROWSER_EXECUTABLE = os.getenv("BROWSER_EXECUTABLE", "")
+
+# MCP server (agent/server.py) so another machine's agent (e.g. Hermes) can start tasks.
+# AGENT_SERVER_TOKEN is required to start it. SERVER_HOST defaults to loopback; set it to this
+# machine's LAN IP (or 0.0.0.0) to let another computer connect.
+SERVER_HOST = os.getenv("AGENT_SERVER_HOST", "127.0.0.1")
+SERVER_PORT = int(os.getenv("AGENT_SERVER_PORT", "8765"))
+SERVER_TOKEN = os.getenv("AGENT_SERVER_TOKEN", "")
+JOBS_DIR = Path(os.getenv("AGENT_JOBS_DIR", "./state/jobs")).resolve()
+
+# Completion email (agent/notify.py). The recipient is fixed here, not chosen by the caller.
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "")
+NOTIFY_EMAIL_TO = os.getenv("NOTIFY_EMAIL_TO", "")

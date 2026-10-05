@@ -9,3 +9,5 @@ __pycache__/
 .self_improvement.lock
 .claude/*
 !.claude/settings.json
+state/jobs/
+state/server.log

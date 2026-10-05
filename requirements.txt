@@ -9,3 +9,4 @@ langsmith
 httpx
 jsonschema
 playwright
+mcp<2
