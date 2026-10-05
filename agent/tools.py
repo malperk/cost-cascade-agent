@@ -10,7 +10,7 @@ import httpx
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.tools import tool
 
-from agent.config import WORKSPACE_DIR
+from agent.config import BROWSER_ENABLED, WORKSPACE_DIR
 
 # See agent/llm.py for why this exists: inside a self-improvement authoring/eval container
 # (--network none), there is no direct internet access at all, so web search is relayed
@@ -164,3 +164,12 @@ def code_execution(code: str, timeout_seconds: int = 10) -> str:
 
 
 ALL_TOOLS = [file_read, file_write, list_directory, calculator, code_execution, web_search]
+
+# No browser inside self-improvement containers (no network there), or when switched off.
+if BROWSER_ENABLED and not _BROKER_SOCKET_PATH:
+    try:
+        from agent.browser import BROWSER_TOOLS
+
+        ALL_TOOLS += BROWSER_TOOLS
+    except ImportError:  # playwright not installed
+        pass

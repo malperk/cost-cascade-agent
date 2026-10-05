@@ -64,3 +64,14 @@ AGENT_REQUIRED_OUTPUT = os.getenv("AGENT_REQUIRED_OUTPUT", "")
 MODEL_CATALOG_PATH = Path(
     os.getenv("MODEL_CATALOG_PATH", str(Path(__file__).resolve().parents[2] / "Omniroute" / "state" / "model_catalog.json"))
 )
+
+# Browser tools (agent/browser.py). BROWSER_ENABLED=false removes them from the agent. They are
+# also never registered inside the self-improvement containers (no network there).
+# BROWSER_DECISIONS picks who chooses the element for browser_act: "llm" (default) always asks
+# the OmniRoute LLM; "auto" asks Jev first (fast, closed-choice) and falls back to the LLM when it is
+# unsure or fails. It is opt-in because Jev would be sent the instruction, the page URL (without
+# query/fragment) and the visible element labels of whatever page the agent is on - do not enable
+# it for logged-in or private pages. BROWSER_EXECUTABLE overrides the Chromium binary.
+BROWSER_ENABLED = os.getenv("BROWSER_ENABLED", "true").lower() != "false"
+BROWSER_DECISIONS = os.getenv("BROWSER_DECISIONS", "llm")
+BROWSER_EXECUTABLE = os.getenv("BROWSER_EXECUTABLE", "")
