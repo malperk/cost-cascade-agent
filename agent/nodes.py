@@ -252,10 +252,14 @@ def agent_node(state: TaskState) -> dict:
     tier = state.get("tier", "low")
     bound_tools = ALL_TOOLS + [FinalAnswer]
     llm = client_for_tier(tier).bind_tools(bound_tools)
-    messages = state.get("messages") or [
+    # First turn: build the opening messages AND persist them below. If only the model's reply
+    # were stored, the next turn (after a tool result) would see just [ai, tool] with no system
+    # prompt and no task, and models answer with "I'm ready to help" instead of the result.
+    opening = [] if state.get("messages") else [
         SystemMessage(content=AGENT_SYSTEM_PROMPT + (BROWSER_PROMPT if any(t.name == "browser_open" for t in ALL_TOOLS) else "")),
         HumanMessage(content=state["task"]),
     ]
+    messages = state.get("messages") or opening
 
     try:
         response = invoke_with_retry(llm, messages)
@@ -269,7 +273,7 @@ def agent_node(state: TaskState) -> dict:
         response = invoke_with_retry(client_for_tier(next_tier).bind_tools(bound_tools), messages)
         fell_back_tier = next_tier
 
-    update: dict = {"messages": [response]}
+    update: dict = {"messages": [*opening, response]}
     if fell_back_tier:
         update["tier"] = fell_back_tier
         update["infra_fallback"] = True
@@ -285,7 +289,7 @@ def agent_node(state: TaskState) -> dict:
         acks = [ToolMessage(content="Final answer recorded.", tool_call_id=final_call["id"])]
         for call in action_calls:
             acks.append(ToolMessage(content="Skipped: FinalAnswer was called in the same turn.", tool_call_id=call["id"]))
-        update["messages"] = [response, *acks]
+        update["messages"] = [*opening, response, *acks]
         update["output"] = _format_final_answer(final_call["args"])
         update["attempt_count"] = state.get("attempt_count", 0) + 1
     elif not action_calls:
