@@ -3,6 +3,7 @@ import operator
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -31,7 +32,24 @@ if _BROKER_SOCKET_PATH:
         except Exception as exc:
             return f"Error: web search failed ({exc})"
 else:
-    web_search = DuckDuckGoSearchRun()
+    _ddg = DuckDuckGoSearchRun()
+
+    # DuckDuckGo intermittently fails (DNS/connect errors from its backends) and the exception
+    # would otherwise propagate out of the tools node and crash the whole run. Retry once, then
+    # report the failure as the tool result - same contract as the broker branch above - so the
+    # model can retry or answer without search.
+    @tool("duckduckgo_search")
+    def web_search(query: str) -> str:
+        """A wrapper around DuckDuckGo Search. Useful for when you need to answer questions about current events. Input should be a search query."""
+        last_exc = None
+        for attempt in range(2):
+            try:
+                return _ddg.invoke(query)
+            except Exception as exc:
+                last_exc = exc
+                if attempt == 0:
+                    time.sleep(1)
+        return f"Error: web search failed ({str(last_exc)[:200]})"
 
 
 def _resolve_safe_path(path: str) -> Path:
