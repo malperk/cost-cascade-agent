@@ -130,6 +130,23 @@ def calculator(expression: str) -> str:
 
 MAX_CODE_EXECUTION_TIMEOUT = 600
 
+# The tool result goes straight into the model's context, so one oversized print or exception
+# can end the run with a context-length error: a live run died at ~331k input tokens when
+# pandas 3's read_html(html_string) raised an error that embedded the whole 1.2 MB page.
+# Keep the head (what the script printed first) and the tail (where tracebacks end).
+MAX_CODE_EXECUTION_OUTPUT_CHARS = 10_000
+
+
+def _truncate_middle(text: str, limit: int = MAX_CODE_EXECUTION_OUTPUT_CHARS) -> str:
+    if len(text) <= limit:
+        return text
+    half = limit // 2
+    omitted = len(text) - 2 * half
+    return (
+        f"{text[:half]}\n\n[... {omitted} characters omitted - output too long; "
+        f"print less or write large results to a file ...]\n\n{text[-half:]}"
+    )
+
 
 @tool
 def code_execution(code: str, timeout_seconds: int = 10) -> str:
@@ -138,6 +155,9 @@ def code_execution(code: str, timeout_seconds: int = 10) -> str:
     timeout_seconds defaults to 10 for quick snippets; pass a higher value
     (up to 600) for longer-running scripts (e.g. calling external CLIs or
     running a multi-minute test suite).
+
+    Output longer than 10,000 characters is cut in the middle (head and tail
+    are kept), so print summaries and write large results to a file.
 
     Not a hardened sandbox: the subprocess has the same filesystem/network
     permissions as this process, isolated only by a process boundary and the
@@ -156,11 +176,11 @@ def code_execution(code: str, timeout_seconds: int = 10) -> str:
         output = result.stdout
         if result.stderr:
             output += f"\n[stderr]\n{result.stderr}"
-        return output.strip() or "(no output)"
+        return _truncate_middle(output.strip()) or "(no output)"
     except subprocess.TimeoutExpired:
         return f"Error: code execution timed out after {timeout_seconds} seconds"
     except Exception as exc:
-        return f"Error: {exc}"
+        return _truncate_middle(f"Error: {exc}")
 
 
 ALL_TOOLS = [file_read, file_write, list_directory, calculator, code_execution, web_search]

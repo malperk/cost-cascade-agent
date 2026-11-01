@@ -54,7 +54,7 @@ strategies can't express.
 |---|---|
 | `file_read`, `file_write`, `list_directory` | Sandboxed to `AGENT_WORKSPACE_DIR`; paths outside it are refused |
 | `calculator` | AST-based, no `eval` |
-| `code_execution` | Python in a subprocess with a timeout, run from the workspace. Not a hardened sandbox: it has this process's filesystem and network access |
+| `code_execution` | Python in a subprocess with a timeout, run from the workspace. Output over 10,000 characters is cut in the middle (head and tail kept) so one big print or traceback cannot overflow the model's context. Not a hardened sandbox: it has this process's filesystem and network access |
 | `web_search` | DuckDuckGo; failures come back as a tool result instead of crashing the run |
 | `browser_open`, `browser_act`, `browser_text` | Headless Chromium via Playwright. `browser_act` takes a plain-language instruction, and the LLM (or Jev, opt-in) picks the element |
 
