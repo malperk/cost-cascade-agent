@@ -59,11 +59,32 @@ def _resolve_safe_path(path: str) -> Path:
     return target
 
 
+# Same reason as MAX_CODE_EXECUTION_OUTPUT_CHARS below: the result goes straight into the
+# model's context, and a large file (e.g. a saved HTML page) would end the run.
+MAX_FILE_READ_CHARS = 10_000
+
+
 @tool
-def file_read(path: str) -> str:
-    """Read and return the text contents of a file inside the agent workspace."""
+def file_read(path: str, offset: int = 0, limit: int = MAX_FILE_READ_CHARS) -> str:
+    """Read the text contents of a file inside the agent workspace.
+
+    Returns at most 10,000 characters per call, starting at character `offset`.
+    When the file is longer, a note at the end gives the offset to pass next.
+    """
     try:
-        return _resolve_safe_path(path).read_text()
+        text = _resolve_safe_path(path).read_text()
+        offset = min(max(0, offset), len(text))
+        limit = max(1, min(limit, MAX_FILE_READ_CHARS))
+        if offset == 0 and len(text) <= limit:
+            return text
+        end = min(offset + limit, len(text))
+        chunk = text[offset:end]
+        if end < len(text):
+            return (
+                f"{chunk}\n\n[showing characters {offset}-{end} of {len(text)}; "
+                f"call file_read with offset={end} to read more]"
+            )
+        return f"{chunk}\n\n[showing characters {offset}-{end} of {len(text)}; end of file]"
     except FileNotFoundError:
         return f"Error: file '{path}' not found"
     except Exception as exc:
@@ -130,6 +151,23 @@ def calculator(expression: str) -> str:
 
 MAX_CODE_EXECUTION_TIMEOUT = 600
 
+# The tool result goes straight into the model's context, so one oversized print or exception
+# can end the run with a context-length error: a live run died at ~331k input tokens when
+# pandas 3's read_html(html_string) raised an error that embedded the whole 1.2 MB page.
+# Keep the head (what the script printed first) and the tail (where tracebacks end).
+MAX_CODE_EXECUTION_OUTPUT_CHARS = 10_000
+
+
+def _truncate_middle(text: str, limit: int = MAX_CODE_EXECUTION_OUTPUT_CHARS) -> str:
+    if len(text) <= limit:
+        return text
+    half = limit // 2
+    omitted = len(text) - 2 * half
+    return (
+        f"{text[:half]}\n\n[... {omitted} characters omitted - output too long; "
+        f"print less or write large results to a file ...]\n\n{text[-half:]}"
+    )
+
 
 @tool
 def code_execution(code: str, timeout_seconds: int = 10) -> str:
@@ -138,6 +176,9 @@ def code_execution(code: str, timeout_seconds: int = 10) -> str:
     timeout_seconds defaults to 10 for quick snippets; pass a higher value
     (up to 600) for longer-running scripts (e.g. calling external CLIs or
     running a multi-minute test suite).
+
+    Output longer than 10,000 characters is cut in the middle (head and tail
+    are kept), so print summaries and write large results to a file.
 
     Not a hardened sandbox: the subprocess has the same filesystem/network
     permissions as this process, isolated only by a process boundary and the
@@ -156,11 +197,11 @@ def code_execution(code: str, timeout_seconds: int = 10) -> str:
         output = result.stdout
         if result.stderr:
             output += f"\n[stderr]\n{result.stderr}"
-        return output.strip() or "(no output)"
+        return _truncate_middle(output.strip()) or "(no output)"
     except subprocess.TimeoutExpired:
         return f"Error: code execution timed out after {timeout_seconds} seconds"
     except Exception as exc:
-        return f"Error: {exc}"
+        return _truncate_middle(f"Error: {exc}")
 
 
 ALL_TOOLS = [file_read, file_write, list_directory, calculator, code_execution, web_search]
