@@ -59,11 +59,32 @@ def _resolve_safe_path(path: str) -> Path:
     return target
 
 
+# Same reason as MAX_CODE_EXECUTION_OUTPUT_CHARS below: the result goes straight into the
+# model's context, and a large file (e.g. a saved HTML page) would end the run.
+MAX_FILE_READ_CHARS = 10_000
+
+
 @tool
-def file_read(path: str) -> str:
-    """Read and return the text contents of a file inside the agent workspace."""
+def file_read(path: str, offset: int = 0, limit: int = MAX_FILE_READ_CHARS) -> str:
+    """Read the text contents of a file inside the agent workspace.
+
+    Returns at most 10,000 characters per call, starting at character `offset`.
+    When the file is longer, a note at the end gives the offset to pass next.
+    """
     try:
-        return _resolve_safe_path(path).read_text()
+        text = _resolve_safe_path(path).read_text()
+        offset = min(max(0, offset), len(text))
+        limit = max(1, min(limit, MAX_FILE_READ_CHARS))
+        if offset == 0 and len(text) <= limit:
+            return text
+        end = min(offset + limit, len(text))
+        chunk = text[offset:end]
+        if end < len(text):
+            return (
+                f"{chunk}\n\n[showing characters {offset}-{end} of {len(text)}; "
+                f"call file_read with offset={end} to read more]"
+            )
+        return f"{chunk}\n\n[showing characters {offset}-{end} of {len(text)}; end of file]"
     except FileNotFoundError:
         return f"Error: file '{path}' not found"
     except Exception as exc:
